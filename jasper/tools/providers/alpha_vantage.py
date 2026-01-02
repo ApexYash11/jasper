@@ -1,6 +1,6 @@
 import httpx
 from typing import Dict
-from tools.exceptions import DataProviderError
+from ..exceptions import DataProviderError
 
 
 # --- Alpha Vantage Client ---

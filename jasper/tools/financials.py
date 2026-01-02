@@ -1,6 +1,6 @@
 import httpx 
 from typing import Optional, Dict, Any, List
-from tools.exceptions import DataProviderError
+from .exceptions import DataProviderError
 
 class FinancialDataError(Exception):
     """Custom exception for financial data retrieval errors."""
@@ -39,4 +39,4 @@ class FinancialClient:
             response = httpx.Response(404, request=request)
             raise httpx.HTTPStatusError("Not Found", request=request, response=response)  # Placeholder for demonstration
         except httpx.HTTPStatusError as e:
-            raise FinancialDataError(f"Failed to fetch data for {entity}: {e}") from e 
+            raise FinancialDataError(f"Failed to fetch data for {entity}: {e}") from e
