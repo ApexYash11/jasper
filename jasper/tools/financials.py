@@ -21,8 +21,11 @@ class FinancialDataRouter:
             except Exception as e:
                 errors.append(str(e))
 
+        error_details = "; ".join(errors)
         raise DataProviderError(
-            f"All providers failed: {errors}"
+            f"All providers failed to fetch income statement for {ticker}. "
+            f"Details: {error_details}. "
+            f"Verify the ticker is valid (e.g., AAPL, RELIANCE.NS, INFY.NS)."
         )
 
 

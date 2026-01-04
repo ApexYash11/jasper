@@ -1,10 +1,7 @@
 import os
 from langchain_openai import ChatOpenAI
 from pydantic import SecretStr
-from dotenv import load_dotenv
-
-# Load environment variables from .env file
-load_dotenv()
+from .config import get_llm_api_key
 
 def get_llm(temperature: float = 0) -> ChatOpenAI:
     """
@@ -17,11 +14,8 @@ def get_llm(temperature: float = 0) -> ChatOpenAI:
     Returns:
         Configured ChatOpenAI instance pointing to OpenRouter
     """
-    api_key = os.getenv("OPENROUTER_API_KEY")
+    api_key = get_llm_api_key()  # Raises ValueError if not set
     model = os.getenv("OPENROUTER_MODEL", "xiaomi/mimo-v2-flash:free")
-    
-    if not api_key:
-        raise ValueError("OPENROUTER_API_KEY not found in environment variables")
     
     return ChatOpenAI(
         model=model,

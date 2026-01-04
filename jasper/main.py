@@ -1,5 +1,2 @@
-def main():
-    print("Jasper package — run the CLI with: python -m jasper or python -m jasper.cli.main")
-
-if __name__ == "__main__":
-    main()
+# This module is for package initialization only.
+# The CLI entrypoint is in jasper.cli.main

@@ -50,9 +50,28 @@ class JasperController:
                 return state
 
             # Synthesis phase
-            state.final_answer = await self.synthesizer.synthesize(state)
-            self.logger.log("FINAL_ANSWER", {"answer": state.final_answer})
-            state.status = "Completed"
+            state.status = "Synthesizing"
+            try:
+                state.final_answer = await self.synthesizer.synthesize(state)
+                self.logger.log("FINAL_ANSWER", {"answer": state.final_answer})
+                state.status = "Completed"
+            except Exception as e:
+                # Distinguish LLM errors from other failures
+                error_msg = str(e)
+                if "524" in error_msg or "provider returned error" in error_msg.lower():
+                    state.error = f"LLM service error (code 524): Temporary rate limit. Please try again in a moment."
+                    state.error_source = "llm_service"
+                elif "401" in error_msg or "unauthorized" in error_msg.lower():
+                    state.error = "LLM authentication failed. Check your OpenRouter API key."
+                    state.error_source = "llm_auth"
+                elif "timeout" in error_msg.lower():
+                    state.error = "LLM request timed out. Please try again."
+                    state.error_source = "llm_timeout"
+                else:
+                    state.error = f"Answer synthesis failed: {error_msg}"
+                    state.error_source = "llm_unknown"
+                self.logger.log("SYNTHESIS_ERROR", {"error": state.error, "source": state.error_source})
+                state.status = "Failed"
             return state
 
         except Exception as e:

@@ -43,7 +43,10 @@ class Executor:
                 
                 if not ticker:
                     # Fallback or error
-                    raise ValueError(f"No ticker found for task: {task.description}")
+                    raise ValueError(
+                        f"No ticker found for task: {task.description}. "
+                        f"The planning step must extract a company ticker (e.g., AAPL, MSFT)."
+                    )
 
                 # Attempt with retries based on state.max_retries
                 attempts = 0
