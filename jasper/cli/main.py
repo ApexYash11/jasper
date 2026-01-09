@@ -25,7 +25,30 @@ from .interface import render_banner, render_mission_board, render_final_report
 from ..core.config import THEME
 
 console = Console()
-app = typer.Typer(invoke_without_command=False)
+app = typer.Typer(
+    invoke_without_command=True,
+    rich_markup_mode="rich",
+    help="Institutional Financial research agent.",
+    no_args_is_help=False
+)
+
+@app.callback()
+def main_callback(ctx: typer.Context):
+    """
+    Callback to show banner and handle default behavior.
+    """
+    if ctx.invoked_subcommand is None:
+        console.clear()
+        console.print(render_banner())
+        console.print("\n[bold]Jasper Financial Intelligence Engine[/bold]")
+        console.print("Deterministic research instrument for institutional analysts.\n")
+        console.print("[dim]Usage: python -m jasper [COMMAND] [ARGS]...[/dim]\n")
+        console.print("Available Commands:")
+        console.print(f"  [{THEME['Accent']}]ask[/{THEME['Accent']}]         Execute a financial query directly.")
+        console.print(f"  [{THEME['Accent']}]interactive[/{THEME['Accent']}] Starting the interactive research session.")
+        console.print(f"  [{THEME['Accent']}]doctor[/{THEME['Accent']}]      Run system diagnostics.")
+        console.print(f"  [{THEME['Accent']}]version[/{THEME['Accent']}]     Display system version information.\n")
+        console.print(f"Run '[{THEME['Accent']}]python -m jasper ask --help[/{THEME['Accent']}]' for more information on a command.")
 
 class RichLogger(SessionLogger):
     def __init__(self, live: Live):
@@ -135,17 +158,30 @@ async def execute_research(query: str, console: Console) -> Jasperstate:
         # Show Final Report with Confidence Breakdown and Answer
         answer = state.final_answer or "No answer generated."
         
-        metrics = []
-        if state.validation and state.validation.breakdown:
-            b = state.validation.breakdown
-            metrics = [
-                {"Metric": "Data Coverage", "Value": f"{b.data_coverage:.2f}", "Source": "Validator"},
-                {"Metric": "Data Quality", "Value": f"{b.data_quality:.2f}", "Source": "Validator"},
-                {"Metric": "Inference Strength", "Value": f"{b.inference_strength:.2f}", "Source": "Validator"},
-                {"Metric": "Overall Confidence", "Value": f"{b.overall:.2f}", "Source": "Validator"},
-            ]
+        # Extract tickers and sources for the report header
+        tickers = []
+        sources = set()
+        for task in state.plan:
+            if task.tool_args:
+                ticker = task.tool_args.get("ticker") or task.tool_args.get("symbol")
+                if ticker:
+                    tickers.append(ticker.upper())
+            if task.tool_name:
+                sources.add(task.tool_name.replace("_", " ").title())
         
-        console.print(render_final_report(answer, metrics))
+        # Deduplicate tickers while preserving order
+        unique_tickers = []
+        for t in tickers:
+            if t not in unique_tickers:
+                unique_tickers.append(t)
+        
+        # Fallbacks
+        if not unique_tickers:
+            unique_tickers = ["Unknown Entity"]
+        if not sources:
+            sources = {"SEC EDGAR"} # Default fallback source
+        
+        console.print(render_final_report(answer, unique_tickers, list(sources)))
         console.print("\n")
     
     return state

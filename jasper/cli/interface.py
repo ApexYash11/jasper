@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from rich.console import Group
 from rich.panel import Panel
 from rich.text import Text
@@ -79,43 +80,50 @@ def render_mission_board(tasks):
         style=f"on {THEME['Background']}"
     )
 
-def render_final_report(summary_text, data):
+def render_final_report(body_text, tickers, sources):
     """
-    Renders a clean table for the final report.
+    Renders the final intelligence report in an executive memo style.
     """
-    # Summary (Markdown)
-    summary = Markdown(summary_text)
+    # Header Construction
+    header_rows = []
     
-    # Divider
-    rule = Rule(style=THEME["Brand"])
+    # Row 1: INTELLIGENCE MEMO
+    header_rows.append(Text("INTELLIGENCE MEMO", style="bold white"))
     
-    # Table
-    table = Table(box=box.ROUNDED, show_header=True, header_style=f"bold {THEME['Accent']}", expand=True)
-    table.add_column("Metric", style=f"bold {THEME['Accent']}")
-    table.add_column("Value", justify="right", style="white")
-    table.add_column("Source", style="dim white")
+    # Row 2: Target Entities
+    target_labels = Text("Target Entities: ", style="dim grey50")
+    target_values = Text(", ".join(tickers), style="bold white")
+    header_rows.append(target_labels + target_values)
     
-    for item in data:
-        table.add_row(item["Metric"], item["Value"], item["Source"])
-        
-    # Footer
-    footer = Text("Source: Jasper Financial Intelligence", style="dim white", justify="center")
-
-    # Group
-    group = Group(
-        summary,
-        Text("\n"),
-        rule,
-        Text("\n"),
-        table,
-        Text("\n"),
-        footer
+    # Row 3: Data As Of | Sources
+    current_date = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    date_label = Text("Data As Of: ", style="dim grey50")
+    date_value = Text(current_date, style="bold white")
+    source_label = Text(" | Sources: ", style="dim grey50")
+    source_value = Text(", ".join(sources), style="bold white")
+    header_rows.append(date_label + date_value + source_label + source_value)
+    
+    # Group header and add a separator
+    header_group = Group(*header_rows)
+    separator = Rule(style="dim")
+    
+    # Body: Markdown
+    body = Markdown(body_text)
+    
+    # Combine everything into a Group
+    content_group = Group(
+        header_group,
+        separator,
+        Text(""), # Padding
+        body
     )
     
-    return Panel(
-        group,
-        title="[bold]FINAL INTELLIGENCE REPORT[/bold]",
-        border_style=THEME["Brand"],
-        style=f"on {THEME['Background']}",
-        padding=(1, 2)
+    # Main Container Panel
+    panel = Panel(
+        content_group,
+        border_style="green",
+        padding=(1, 2),
+        expand=False
     )
+    
+    return panel

@@ -1,0 +1,2 @@
+[console_scripts]
+jasper = jasper.cli.main:app

@@ -25,21 +25,29 @@ class Synthesizer:
         data_context += f"Task: {desc}\nData: {result}\n\n"
 
     prompt = ChatPromptTemplate.from_template("""
-    You are a senior financial analyst. Synthesize the following research data into a concise, professional comparison.
+    ROLE: You are Jasper, a deterministic financial intelligence engine.
+    TASK: Synthesize the research data into a clinical, high-density analysis.
     
     User Query: {query}
     
     Research Data:
     {data}
     
-    Rules:
-    - Use only the provided data.
-    - If data is insufficient for a full comparison, state what is missing.
-    - Focus on key operating metrics (Revenue, Net Income, etc.).
-    - Do NOT hallucinate or guess numbers.
-    - Maintain a neutral, professional tone.
+    CONSTRAINTS:
+    - Use ONLY provided data.
+    - NO conversational filler (e.g., "Here is the report", "Based on the data").
+    - NO internal memo headers (To:, From:, Subject:, Date:).
+    - NO introductory pleasantries.
+    - Start immediately with the analysis headings (e.g., "1. Revenue Scale").
+    - Use succinct bullet points and bolded metrics.
+    - If data is partial or potentially subsidiary-only, flag it in a 'Data Qualifications' section at the end.
     
-    Answer:
+    OUTPUT STRUCTURE:
+    - Findings prioritized by materiality.
+    - Neutral objective tone.
+    - Technical density is preferred over narrative flow.
+    
+    Analysis:
     """)
     
     chain = prompt | self.llm
