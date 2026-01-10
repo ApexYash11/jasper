@@ -383,7 +383,7 @@ Jasper is intentionally conservative. If data is missing or incomplete, validati
 
 ## Project Status
 
-**Version:** 0.2.0 (pre-1.0)
+**Version:** 0.4.0 (pre-1.0)
 
 Jasper is in active development. While the core pipeline is stable, minor releases may include breaking changes while the major version is 0.
 
