@@ -10,147 +10,290 @@
 
 ---
 
-##  Why Jasper?
+## 🎯 Why Jasper?
 
 Financial AI is often unreliable. Most tools produce confident-sounding answers that are frequently backed by hallucinations or missing data. **Jasper takes a different approach: it treats every question as a mission.**
 
 Instead of just "chatting," Jasper follows a rigorous 4-stage pipeline:
-1.  **Plan**  Decomposes your question into structured research tasks.
-2.  **Execute**  Fetches real-time data from authoritative APIs (Alpha Vantage, yfinance).
-3.  **Validate**  Analyzes data completeness and financial logic.
-4.  **Synthesize**  Generates a report **only if validation passes**.
+1. **Plan** → Decomposes your question into structured research tasks.
+2. **Execute** → Fetches real-time data from authoritative APIs (Alpha Vantage, yfinance).
+3. **Validate** → Analyzes data completeness and financial logic.
+4. **Synthesize** → Generates a report **only if validation passes**.
 
 **If validation fails, Jasper stops. No hallucinations. Confidence = 0.**
 
 ---
 
-##  Key Features
+## ✨ Key Features
 
--  **Autonomous Planning**: Automatically breaks down complex questions (e.g., "Compare Apple and Microsoft's R&D spend vs Revenue") into executable sub-tasks.
--  **Tool-Grounded Data**: Direct integration with [Alpha Vantage](https://www.alphavantage.co/) and [yfinance](https://github.com/ranaroussi/yfinance).
--  **Validation Gate**: A "Mission Control" that blocks synthesis if data is missing or inconsistent.
--  **Confidence Scoring**: Transparent breakdown of data coverage, data quality, and inference strength.
--  **Interactive REPL**: A professional CLI environment for iterative research.
--  **Rich Terminal UI**: Live progress boards, tree views, and structured reports.
+- 🧠 **Autonomous Planning**: Automatically breaks down complex questions (e.g., "Compare Apple and Microsoft's R&D spend vs Revenue") into executable sub-tasks.
+- ⚙️ **Tool-Grounded Data**: Direct integration with [Alpha Vantage](https://www.alphavantage.co/) and [yfinance](https://github.com/ranaroussi/yfinance).
+- ✅ **Validation Gate**: A "Mission Control" that blocks synthesis if data is missing or inconsistent.
+- 📊 **Confidence Scoring**: Transparent breakdown of data coverage, data quality, and inference strength.
+- 💬 **Interactive REPL**: A professional CLI environment for iterative research.
+- 🎨 **Rich Terminal UI**: Live progress boards, tree views, and structured reports.
 
 ---
 
-##  Installation
+## 🚀 Installation (Choose One)
 
-### Using pip
-`ash
+### Option 1: pip (Standard)
+```bash
 pip install jasper-finance
-`
+```
 
-### Using uv (Recommended for speed)
-`ash
+### Option 2: uv (Faster)
+```bash
 uv pip install jasper-finance
-`
+```
+
+### Option 3: From Source (Development)
+```bash
+git clone https://github.com/ApexYash11/jasper.git
+cd jasper
+pip install -e .
+```
 
 ---
 
-##  Quick Start & Setup
+## 🛠️ Setup (2 Minutes)
 
-### 1. Get Your API Keys
-To use Jasper, you need two keys:
-- **OpenRouter API Key**: Used for LLM-based planning and synthesis. [Get it here](https://openrouter.ai/keys).
-- **Alpha Vantage API Key**: Used for core financial statements. [Get it here (Free)](https://www.alphavantage.co/support/#api-key).
+### Step 1: Get API Keys
+You need **two free API keys**:
 
-### 2. Set Environment Variables
-Create a .env file or export them in your terminal:
-`ash
+| API | Purpose | Get Key |
+|-----|---------|---------|
+| **OpenRouter** | LLM synthesis & planning | [openrouter.ai/keys](https://openrouter.ai/keys) |
+| **Alpha Vantage** | Financial data (statements) | [alphavantage.co/support](https://www.alphavantage.co/support/#api-key) *(free)* |
+
+### Step 2: Configure Environment
+Create a `.env` file in your working directory:
+
+```bash
+OPENROUTER_API_KEY=sk-or-v1-xxxxxxxxxxxxx
+ALPHA_VANTAGE_API_KEY=your-alpha-vantage-key
+```
+
+**Or** export in your terminal:
+```bash
+# macOS/Linux
 export OPENROUTER_API_KEY="sk-or-v1-xxxxxxxxxxxxx"
 export ALPHA_VANTAGE_API_KEY="your-key"
-`
 
-### 3. Run Your First Mission
-`ash
+# Windows PowerShell
+$env:OPENROUTER_API_KEY="sk-or-v1-xxxxxxxxxxxxx"
+$env:ALPHA_VANTAGE_API_KEY="your-key"
+```
+
+### Step 3: Verify Setup
+```bash
+jasper doctor
+```
+
+Expected output:
+```
+✅ OPENROUTER_API_KEY is set
+✅ ALPHA_VANTAGE_API_KEY is set
+✅ Python 3.9+ installed
+✅ All dependencies available
+```
+
+---
+
+## 📖 Quick Start
+
+### Single Query (One-off Research)
+```bash
 jasper ask "What is Nvidia's revenue trend over the last 3 years?"
-`
+```
 
-### 4. Enter Interactive Mode
-For a deeper dive, use the REPL:
-`ash
+Output:
+```
+MISSION CONTROL
+[PLANNING] Breaking down your question...
+[EXECUTING] Fetching financial data...
+[VALIDATING] Checking data integrity...
+[SYNTHESIZING] Generating report...
+
+INTELLIGENCE MEMO
+Nvidia Revenue Analysis 2022-2024
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+[Report content...]
+```
+
+### Interactive Mode (Multiple Queries)
+```bash
 jasper interactive
-`
+```
+
+You'll see:
+```
+Interactive Mode. Type 'exit' to quit.
+
+? Enter Financial Query: Analyze Tesla's operating margins.
+[Jasper processes your query...]
+
+? Enter Financial Query: Compare Ford vs GM revenue growth.
+[Next query...]
+```
 
 ---
 
-##  Architecture: How It Works
+## 🏗️ How It Works (Architecture)
 
-Jasper uses a modular multi-agent system designed for transparency.
+```
+┌─────────────────────────────────────────────────────────┐
+│                    YOUR QUESTION                         │
+│          "What is Apple's revenue trend?"                │
+└────────────────────┬────────────────────────────────────┘
+                     │
+                     ▼
+        ┌────────────────────────┐
+        │   1️⃣ PLANNER AGENT     │
+        │  Breaks down question   │
+        │  into research tasks    │
+        └────────────┬────────────┘
+                     │
+                     ▼
+        ┌────────────────────────┐
+        │ 2️⃣ EXECUTION ENGINE    │
+        │  Fetches real data      │
+        │  - Alpha Vantage        │
+        │  - yfinance             │
+        └────────────┬────────────┘
+                     │
+                     ▼
+        ┌────────────────────────┐
+        │ 3️⃣ VALIDATION GATE     │
+        │  Checks data quality    │
+        │  & completeness         │
+        └────┬───────────┬────────┘
+             │           │
+          ✅ PASS    ❌ FAIL
+             │           │
+             ▼           ▼
+      ┌─────────────┐  Research Failed
+      │ 4️⃣ SYNTHESIZE│  (Confidence = 0)
+      │   Report    │
+      └──────┬──────┘
+             │
+             ▼
+    ┌─────────────────────┐
+    │   FINAL REPORT      │
+    │  + Confidence Score │
+    └─────────────────────┘
+```
 
-`mermaid
-flowchart LR
-    Q["Query"] --> P["Planner Agent"]
-    P --> E["Execution Engine"]
-    E --> V["Validation Gate"]
-    
-    V -->|Success| S["Synthesizer Agent"]
-    V -->|Failure| F["Stop (Confidence=0)"]
-    
-    S --> R["Final Report"]
-    
-    subgraph Data Providers
-        AV["Alpha Vantage"]
-        YF["yfinance"]
-    end
-    
-    E --> AV
-    E --> YF
-`
-
-- **Planner**: Uses nthropic/claude-3-sonnet (or your configured model) to create a task list.
-- **Executor**: Processes tasks sequentially, routing to the appropriate data provider.
-- **Validator**: Verifies that the data returned actually answers the original intent.
-- **Synthesizer**: Finalizes the report with professional financial tone.
-
----
-
-##  Commands Reference
-
-| Command | Description |
-|---------|-------------|
-| jasper ask "<query>" | Execute a single research mission and print the report. |
-| jasper interactive | Start an interactive session for multiple queries. |
-| jasper doctor | Diagnose your environment and API key configuration. |
-| jasper version | Display the current installed version (v1.0.0). |
-| jasper --help | View all available options and flags. |
-
----
-
-##  Troubleshooting
-
-- **"Research Failed"**: This is **intentional**. It means Jasper couldn't find enough valid data to answer you safely. Check the "Validation Issues" section in the output.
-- **API Rate Limits**: If using a free Alpha Vantage key, you may hit rate limits. Use jasper doctor to verify your key.
-- **Ticker Symbols**: Ensure you use the correct ticker (e.g., AAPL for Apple). For non-US stocks, use suffixes like .BSE or .NS.
-- **OpenRouter Balance**: Ensure your OpenRouter account has credits or a valid credit card attached.
-
----
-
-##  License & Usage
-
-Jasper Finance is released under the **MIT License**.
-
-### MIT License Details
-- **Commercial Use**: Permitted
-- **Modification**: Permitted
-- **Distribution**: Permitted
-- **Private Use**: Permitted
-- **Liability/Warranty**: None (The software is provided "as is")
-
-See the [LICENSE](LICENSE) file for the full legal text.
+**Key Agents:**
+- **Planner**: Decomposes questions → creates task list
+- **Executor**: Runs tasks → fetches from APIs
+- **Validator**: Verifies completeness → blocks bad synthesis
+- **Synthesizer**: Writes professional report
 
 ---
 
-##  Important Links
+## 💡 Real Examples
 
--  **Source Code**: [GitHub Repository](https://github.com/ApexYash11/jasper)
--  **Issue Tracker**: [Report a Bug](https://github.com/ApexYash11/jasper/issues)
--  **PyPI**: [Download Package](https://pypi.org/project/jasper-finance/)
--  **Data Provider**: [Alpha Vantage](https://www.alphavantage.co/)
--  **LLM Gateway**: [OpenRouter](https://openrouter.ai/)
+### Example 1: Single Query
+```bash
+$ jasper ask "What is Apple's revenue trend over the last 3 years?"
+
+MISSION CONTROL
+[EXECUTING] Fetching live market data...
+└── RESEARCH PLAN
+    ├── ✔ Fetch income statement for AAPL
+    ├── ✔ Calculate YoY growth percentages
+    └── ✔ Validate data consistency
+
+INTELLIGENCE MEMO
+Apple Inc. Revenue Analysis
+━━━━━━━━━━━━━━━━━━━━━━━━━
+- 2022: $394.3B
+- 2023: $383.3B (-2.8%)
+- 2024: $391.0B (+1.9%)
+
+Overall Confidence: 95%
+Data Coverage: 100%
+```
+
+### Example 2: Failed Research (By Design)
+```bash
+$ jasper ask "What is the revenue of a private company with no SEC filings?"
+
+MISSION CONTROL
+[VALIDATING] Verifying data integrity...
+
+Research Failed
+
+Validation Issues:
+  - No financial data available for private companies
+  - SEC filings required (Alpha Vantage provides only public data)
+
+Overall Confidence: 0%
+```
+This is **intentional**. No hallucinations.
 
 ---
 
-**Built by analysts, for analysts. Use Jasper to stop guessing and start researching.**
+## 🔧 All Commands
+
+| Command | What It Does |
+|---------|------------|
+| `jasper ask "question"` | Execute a single research mission |
+| `jasper interactive` | Enter multi-query mode |
+| `jasper doctor` | Verify API keys and setup |
+| `jasper version` | Show installed version |
+| `jasper --help` | View all commands |
+
+---
+
+## ❓ Troubleshooting
+
+**Problem**: `"Research Failed"`  
+**Solution**: This is by design. Check the validation issues output. Usually means data is incomplete or ticker doesn't exist.
+
+**Problem**: `API Rate Limit Hit`  
+**Solution**: Using free Alpha Vantage key? Limit is ~5 calls/min. Wait a moment or upgrade your key.
+
+**Problem**: `OPENROUTER_API_KEY not set`  
+**Solution**: 
+```bash
+echo $OPENROUTER_API_KEY  # Check if set
+export OPENROUTER_API_KEY="sk-or-v1-xxxxx"  # Set it
+jasper doctor  # Verify
+```
+
+**Problem**: `Ticker not found`  
+**Solution**: Verify the ticker symbol is correct (AAPL, not APPLE). For international stocks, use `.NS` or `.BSE` suffix.
+
+---
+
+## ⚖️ License
+
+Jasper Finance is released under the **MIT License** (2026, ApexYash).
+
+### What MIT Means
+- ✅ **Commercial Use**: Yes, you can use this commercially.
+- ✅ **Modification**: Yes, you can modify the code.
+- ✅ **Distribution**: Yes, you can redistribute.
+- ✅ **Private Use**: Yes, use for private projects.
+- ⚠️ **Warranty**: None. No liability for damages.
+
+See [LICENSE](LICENSE) for full legal text.
+
+---
+
+## 🔗 Links
+
+| What | Link |
+|------|------|
+| 📦 **PyPI Package** | [pypi.org/project/jasper-finance/](https://pypi.org/project/jasper-finance/) |
+| 💻 **GitHub Source** | [github.com/ApexYash11/jasper](https://github.com/ApexYash11/jasper) |
+| 🐛 **Report Issues** | [github.com/ApexYash11/jasper/issues](https://github.com/ApexYash11/jasper/issues) |
+| 📊 **Data: Alpha Vantage** | [alphavantage.co](https://www.alphavantage.co/) |
+| 📈 **Data: yfinance** | [github.com/ranaroussi/yfinance](https://github.com/ranaroussi/yfinance) |
+| 🤖 **LLM: OpenRouter** | [openrouter.ai](https://openrouter.ai/) |
+
+---
+
+**Built by analysts, for analysts. Stop guessing. Start researching. Jasper Finance v1.0.0**
