@@ -4,10 +4,25 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "jasper-finance"
-version = "0.5.0"
-description = "Financial research agent"
+version = "1.0.0"
+description = "Terminal-native autonomous financial research agent with deterministic planning and validation gating."
+readme = "README.md"
 requires-python = ">=3.9"
-readme = { file = "README_PYPI.md", content-type = "text/markdown" }
+license = { text = "MIT" }
+authors = [
+    { name = "ApexYash", email = "apex@example.com" }
+]
+keywords = ["finance", "agent", "research", "autonomous", "cli"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Intended Audience :: Financial and Insurance Industry",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Office/Business :: Financial",
+]
 dependencies = [
     "typer>=0.9.0",
     "rich>=13.0.0",
@@ -22,6 +37,11 @@ dependencies = [
     "weasyprint>=60.0",
     "markdown-it-py>=3.0.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/ApexYash11/jasper"
+Issues = "https://github.com/ApexYash11/jasper/issues"
+Repository = "https://github.com/ApexYash11/jasper"
 
 [project.scripts]
 jasper = "jasper.cli.main:app"
