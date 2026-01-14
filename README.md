@@ -32,22 +32,18 @@ Instead of just "chatting," Jasper follows a rigorous 4-stage pipeline:
 - 📊 **Confidence Scoring**: Transparent breakdown of data coverage, data quality, and inference strength.
 - 💬 **Interactive REPL**: A professional CLI environment for iterative research.
 - 🎨 **Rich Terminal UI**: Live progress boards, tree views, and structured reports.
+- 📄 **PDF Export**: Generate professional financial research reports and export as PDFs.
 
 ---
 
-## 🚀 Installation (Choose One)
+## 🚀 Installation
 
-### Option 1: pip (Standard)
+### Using pip
 ```bash
 pip install jasper-finance
 ```
 
-### Option 2: uv (Faster)
-```bash
-uv pip install jasper-finance
-```
-
-### Option 3: From Source (Development)
+### From Source (Development)
 ```bash
 git clone https://github.com/ApexYash11/jasper.git
 cd jasper
@@ -241,6 +237,7 @@ This is **intentional**. No hallucinations.
 |---------|------------|
 | `jasper ask "question"` | Execute a single research mission |
 | `jasper interactive` | Enter multi-query mode |
+| `jasper export <query>` | Generate research and export as PDF report |
 | `jasper doctor` | Verify API keys and setup |
 | `jasper version` | Show installed version |
 | `jasper --help` | View all commands |
