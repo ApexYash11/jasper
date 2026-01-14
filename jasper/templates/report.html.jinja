@@ -1,137 +1,184 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Analyst Memo: {{ report.query | truncate(40) }}</title>
+    <title>Forensic Artifact: {{ report.query | truncate(40) }}</title>
     <style>
 {{ css_content | safe }}
     </style>
 </head>
 <body>
     
-    <!-- ===== COVER PAGE ===== -->
-    <section class="cover-page">
-        <div class="cover-content">
-            <div class="cover-logo">JASPER FINANCE</div>
-            <h1 class="cover-title">Analyst Research Memo</h1>
-            <p style="color: #bdc3c7; font-size: 14pt; margin-top: -40pt; margin-bottom: 60pt; font-weight: 300;">
-                A deterministic analysis of the business model using validated financial data.
-            </p>
-            
-            <div class="cover-query">
-                "{{ report.query }}"
+    <!-- ===== METADATA DASHBOARD ===== -->
+    <div class="metadata-dashboard">
+        <div class="dashboard-header">
+            Jasper Forensic Report (v{{ report.version }}) | Audit Log
+        </div>
+        <div class="dashboard-body">
+            <div class="dashboard-column">
+                <div class="meta-row"><span class="meta-label">QUERY HASH:</span> <span class="meta-value">{{ report.query | hash }}</span></div>
+                <div class="meta-row"><span class="meta-label">TIMESTAMP:</span> <span class="meta-value">{{ report.timestamp.strftime('%Y-%m-%d %H:%M:%S UTC') }}</span></div>
+                <div class="meta-row"><span class="meta-label">ENTITIES:</span> <span class="meta-value">{{ report.tickers | join(', ') or 'N/A' }}</span></div>
+                <div class="meta-row"><span class="meta-label">MODE:</span> <span class="meta-value">{{ report.report_mode | upper }}</span></div>
             </div>
-            
-            <div class="metadata-grid" style="color: #bdc3c7; background: transparent; border: none; border-top: 1px solid #7f8c8d;">
-                <table style="width: 100%; border: none; background: transparent;">
-                    <tr class="metadata-row">
-                        <td class="metadata-label" style="color: #ecf0f1; border: none; background: transparent;">Release Date</td>
-                        <td style="text-align: right; border: none; background: transparent;">{{ report.timestamp.strftime('%B %d, %Y') }}</td>
-                    </tr>
-                    <tr class="metadata-row">
-                        <td class="metadata-label" style="color: #ecf0f1; border: none; background: transparent;">Reference Entities</td>
-                        <td style="text-align: right; border: none; background: transparent;">{{ report.tickers | join(', ') or 'N/A' }}</td>
-                    </tr>
-                    <tr class="metadata-row">
-                        <td class="metadata-label" style="color: #ecf0f1; border: none; background: transparent;">Reliability Score</td>
-                        <td style="text-align: right; border: none; background: transparent;" class="{% if report.confidence_score > 0.8 %}text-success{% else %}text-danger{% endif %}">
-                            {{ (report.confidence_score * 100) | round(1) }}%
-                        </td>
-                    </tr>
-                </table>
+            <div class="dashboard-column">
+                <div class="meta-row">
+                    <span class="meta-label">DATA RETRIEVAL:</span> 
+                    <span class="ledger-entry status-passed">SUCCESS</span>
+                </div>
+                <div class="meta-row">
+                    <span class="meta-label">VALIDATION:</span> 
+                    <span class="ledger-entry {% if report.is_valid %}status-passed{% else %}status-failed{% endif %}">
+                        {% if report.is_valid %}PASSED{% else %}FAILED{% endif %}
+                    </span>
+                </div>
+                <div class="meta-row">
+                    <span class="meta-label">CONFIDENCE:</span> 
+                    <span class="ledger-entry {% if report.confidence_score > 0.8 %}status-passed{% else %}status-failed{% endif %}">
+                        {{ report.confidence_score | round(2) }}
+                    </span>
+                </div>
             </div>
         </div>
-        
-        <div class="cover-footer">
-            Jasper Intelligence Engine v{{ report.version }} | Deterministic Financial Research
+    </div>
+
+    <h1>Forensic Analysis: {{ report.query }}</h1>
+
+    <!-- 1 EVIDENCE MATRIX -->
+    <section class="forensic-section">
+        <div class="section-title">1. Evidence Matrix</div>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 10%;">ID</th>
+                    <th style="width: 25%;">Metric</th>
+                    <th style="width: 20%;">Value</th>
+                    <th style="width: 15%;">Period</th>
+                    <th style="width: 15%;">Source</th>
+                    <th style="width: 15%;">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in report.evidence_log %}
+                <tr>
+                    <td class="monospace">{{ item.id }}</td>
+                    <td>{{ item.metric }}</td>
+                    <td class="bold">{{ item.value }}</td>
+                    <td>{{ item.period }}</td>
+                    <td>{{ item.source }}</td>
+                    <td><span class="ledger-entry status-passed">{{ item.status }}</span></td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" style="text-align: center;">No structured evidence log available.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+
+    <!-- 2 LIMITATION MATRIX (Foregrounded) -->
+    <section class="forensic-section">
+        <div class="section-title">2. Limitation Matrix</div>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 30%;">Category</th>
+                    <th style="width: 70%;">Constraint / Risk Mapping</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for category, constraint in report.logic_constraints.items() %}
+                <tr>
+                    <td class="bold">{{ category | upper }}</td>
+                    <td>{{ constraint }}</td>
+                </tr>
+                {% endfor %}
+                {% for issue in report.validation_issues %}
+                <tr>
+                    <td class="bold">VALIDATION_SIGNAL</td>
+                    <td class="text-danger">{{ issue }}</td>
+                </tr>
+                {% endfor %}
+                {% if not report.logic_constraints and not report.validation_issues %}
+                <tr><td colspan="2">No formal constraints identified.</td></tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </section>
+
+    <div class="page-break"></div>
+
+    <!-- 3 INFERENCE MAP -->
+    <section class="forensic-section">
+        <div class="section-title">3. Inference Map (Claim-to-Data)</div>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 40%;">Claim</th>
+                    <th style="width: 15%;">Evidence IDs</th>
+                    <th style="width: 30%;">Logic Path</th>
+                    <th style="width: 15%;">Confidence</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for inf in report.inference_map %}
+                <tr>
+                    <td class="bold">{{ inf.claim }}</td>
+                    <td>
+                        {% for eid in inf.evidence_ids %}
+                        <span class="evidence-tag">{{ eid }}</span>
+                        {% endfor %}
+                    </td>
+                    <td class="logic-path">{{ inf.logic_path }}</td>
+                    <td class="text-right monospace">{{ (inf.confidence * 100) | round(0) }}%</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" style="text-align: center;">No structured inference map available.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+
+    <!-- 4 SYNTHESIS CONTEXT -->
+    <section class="forensic-section">
+        <div class="section-title">4. Analytical Synthesis</div>
+        <div class="synthesis-content">
+            {{ synthesis_html | safe }}
         </div>
     </section>
 
-    <!-- ===== MAIN REPORT CONTENT ===== -->
-    <div class="report-container" style="padding: 0 1.5cm;">
-        
-        <!-- ===== EXECUTIVE CONFIDENCE BLOCK (New early placement) ===== -->
-        <section class="report-section" style="margin-top: 30pt;">
-            <div class="callout callout-confidence" style="border: 1pt solid #2980b9; margin: 0;">
-                <table style="width: 100%; border: none; margin: 0;">
-                    <tr>
-                        <td style="border: none; padding: 0;"><strong>RESEARCH CONFIDENCE:</strong></td>
-                        {% if report.confidence_breakdown %}
-                        <td style="border: none; padding: 0; text-align: right;">
-                            <span style="margin-left: 10pt;">Coverage: {{ (report.confidence_breakdown.data_coverage * 100) | round(0) }}%</span>
-                            <span style="margin-left: 10pt;">Quality: {{ (report.confidence_breakdown.data_quality * 100) | round(0) }}%</span>
-                            <span style="margin-left: 10pt;">Inference: {{ (report.confidence_breakdown.inference_strength * 100) | round(0) }}%</span>
-                        </td>
-                        {% endif %}
-                    </tr>
-                </table>
-            </div>
-        </section>
+    <div class="page-break"></div>
 
-        <!-- Semantic Section Wrap for the entire synthesized narrative -->
-        <article class="narrative">
-            {{ synthesis_html | safe }}
-        </article>
-
-        <!-- ===== VALIDATION & DETAILS (Moved down) ===== -->
-        {% if not report.is_valid or report.validation_issues %}
-        <section class="report-section" id="limitations">
-            <div class="warning-block">
-                <h3>⚠ Critical Validation Notes</h3>
-                <ul>
-                    {% for issue in report.validation_issues %}
-                    <li>{{ issue }}</li>
-                    {% endfor %}
-                </ul>
-            </div>
-        </section>
-        {% endif %}
-
-        <!-- ===== APPENDIX ===== -->
-        <section class="report-section appendix">
-            <h2>APPENDIX</h2>
-            
-            <h3>Data Sourcing & Methodology</h3>
-            <p>
-                The following data providers were queried to compile this report. Analysis is performed 
-                using deterministic logic gates to ensure auditability.
-            </p>
-            <ul>
-                {% for source in report.data_sources %}
-                <li>{{ source }}</li>
+    <!-- 5 AUDIT TRAIL -->
+    <section class="forensic-section">
+        <div class="section-title">5. Execution Audit Trail</div>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 15%;">Task ID</th>
+                    <th style="width: 45%;">Operation</th>
+                    <th style="width: 20%;">Tool</th>
+                    <th style="width: 20%;">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for task in report.audit_trail %}
+                <tr>
+                    <td class="monospace">{{ task.task_id }}</td>
+                    <td>{{ task.description }}</td>
+                    <td>{{ task.tool }}</td>
+                    <td><span class="ledger-entry status-passed">{{ task.status }}</span></td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" style="text-align: center;">No execution audit trail available.</td></tr>
                 {% endfor %}
-            </ul>
+            </tbody>
+        </table>
+    </section>
 
-            <h3>System Metadata</h3>
-            <div class="metadata-grid">
-                <table style="width: 100%; border: none;">
-                    <tr class="metadata-row">
-                        <td class="metadata-label" style="border: none;">Report ID</td>
-                        <td style="text-align: right; border: none;"><span class="footer-hash">{{ report.query | hash }}</span></td>
-                    </tr>
-                    <tr class="metadata-row">
-                        <td class="metadata-label" style="border: none;">Engine Version</td>
-                        <td style="text-align: right; border: none;">v{{ report.version }}</td>
-                    </tr>
-                    <tr class="metadata-row">
-                        <td class="metadata-label" style="border: none;">Task Audit Trail</td>
-                        <td style="text-align: right; border: none;">{{ report.task_count }} successful execution steps</td>
-                    </tr>
-                    <tr class="metadata-row">
-                        <td class="metadata-label" style="border: none;">Generation Time</td>
-                        <td style="text-align: right; border: none;">{{ report.timestamp.isoformat() }}</td>
-                    </tr>
-                </table>
-            </div>
-
-            <div class="disclaimer">
-                <strong>DETERMINISTIC DISCLAIMER:</strong> This report is generated by a deterministic agent. 
-                All findings are derived strictly from identified tools and cross-referenced data. 
-                This does not constitute professional investment advice.
-            </div>
-        </section>
-    </div>
+    <footer style="margin-top: 50pt; border-top: 1pt solid #cbd5e0; padding-top: 10pt; font-size: 8pt; color: #718096; text-align: center;">
+        Jasper Intelligence Engine | SEC-Compliant Data Traceability | Confidential Analyst Output
+        <br/><span class="monospace">{{ report.query | hash }}</span>
+    </footer>
 
 </body>
-</html>
 </html>

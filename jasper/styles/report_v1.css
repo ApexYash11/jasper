@@ -1,285 +1,162 @@
 /* 
-   Jasper Finance Report Theme - Analyst Memo v3
-   Optimized for dual-engine compatibility (WeasyPrint & xhtml2pdf).
-   Focus: Pagination control, Signal Box, and Content Separation.
+   Jasper Finance Forensic Artifact Theme - v0.2.0
+   Optimized for high-density auditable data.
+   Supports WeasyPrint & xhtml2pdf Fallback.
 */
 
+@page {
+    size: a4 portrait;
+    margin: 1.0cm;
+}
+
 body {
-    font-family: Helvetica, Arial, sans-serif;
-    line-height: 1.55;
-    color: #2c3e50;
+    font-family: "Helvetica", "Arial", sans-serif;
+    line-height: 1.4;
+    color: #1a202c;
     background-color: #ffffff;
     margin: 0;
     padding: 0;
-    font-size: 10pt;
+    font-size: 9pt; /* Denser baseline */
 }
 
-/* Pagination Control */
-.report-section {
-    margin-bottom: 25pt;
-    page-break-inside: avoid;
-}
-
-h1, h2, h3 { 
-    page-break-after: avoid; 
-    break-after: avoid;
-    margin-top: 1.5em;
-}
-
-/* Force page breaks only for major sections if requested */
-h2#executive-summary, 
-h2#financial-evidence, 
-h2#limitations {
-    page-break-before: always;
-    break-before: page;
-}
-
-/* Signal Box - Style based on blockquote formatting in synthesis */
-blockquote:first-of-type {
-    border: 1.5pt solid #2c3e50;
-    background-color: #f8f9fa;
-    padding: 12pt 18pt;
-    margin-bottom: 30pt;
-    font-style: normal;
-}
-
-/* Executive Summary Logic Table */
-.exec-summary-grid {
-    width: 100%;
+/* --- Metadata Dashboard (Page 1 Start) --- */
+.metadata-dashboard {
+    border: 1.5pt solid #2d3748;
     margin-bottom: 20pt;
-    border-bottom: 1.5pt solid #e5e8e8;
+    background-color: #f7fafc;
 }
 
-/* Evidence Tables Styling */
+.dashboard-header {
+    background-color: #2d3748;
+    color: #ffffff;
+    padding: 8pt 12pt;
+    font-weight: bold;
+    font-size: 11pt;
+    text-transform: uppercase;
+    letter-spacing: 1pt;
+}
+
+.dashboard-body {
+    padding: 10pt;
+    display: table;
+    width: 100%;
+}
+
+.dashboard-column {
+    display: table-cell;
+    width: 50%;
+    vertical-align: top;
+}
+
+.meta-row {
+    margin-bottom: 4pt;
+    display: block;
+}
+
+.meta-label {
+    font-weight: bold;
+    color: #4a5568;
+    width: 100pt;
+    display: inline-block;
+}
+
+.meta-value {
+    font-family: monospace;
+}
+
+/* --- Forensic Ledger / Status Labels --- */
+.ledger-entry {
+    font-weight: bold;
+    padding: 2pt 6pt;
+    border-radius: 2pt;
+    font-size: 8pt;
+}
+
+.status-passed { background-color: #c6f6d5; color: #22543d; border: 1pt solid #2f855a; }
+.status-failed { background-color: #fed7d7; color: #822727; border: 1pt solid #c53030; }
+
+/* --- Tables (Evidence & Inference) --- */
 table {
     width: 100%;
     border-collapse: collapse;
-    margin: 1.5em 0 0.5em 0;
-    font-size: 9pt;
+    margin-bottom: 15pt;
+    table-layout: fixed;
 }
 
 th {
-    border-bottom: 1.5pt solid #2c3e50;
-    color: #2c3e50;
+    background-color: #edf2f7;
+    color: #2d3748;
     text-align: left;
     padding: 6pt;
-    background-color: #f2f4f4; /* Subtle header bg */
+    border: 0.5pt solid #cbd5e0;
+    font-weight: bold;
+    font-size: 8.5pt;
 }
 
 td {
     padding: 5pt 6pt;
-    border-bottom: 0.5pt solid #e5e8e8;
-}
-
-/* Right-align numeric columns (approximate) */
-td:nth-child(n+2), th:nth-child(n+2) {
-    text-align: right;
-}
-
-/* Content Type Separation */
-blockquote {
-    margin: 1em 0;
-    padding: 10pt 15pt;
-    background-color: #ebf5fb; /* Interpretation callout */
-    border-left: 4pt solid #2980b9;
-    font-style: normal;
-}
-
-em {
-    color: #7f8c8d; /* Assumption style */
-}
-
-.warning-block {
-    background-color: #fdf5f5;
-    border: 1pt solid #c0392b;
-    padding: 10pt;
-    margin: 1.5em 0;
-    color: #c0392b;
-}
-
-/* Institutional Cover */
-.cover-page {
-    height: 22cm;
-    width: 100%;
-    background-color: #2c3e50;
-    color: white;
-    text-align: center;
-}
-
-.cover-content {
-    padding-top: 4cm;
-}
-
-.cover-logo { font-size: 32pt; font-weight: bold; letter-spacing: 2pt; }
-.cover-title { font-size: 20pt; margin: 20pt 0; }
-.cover-footer { padding-top: 4cm; font-size: 9pt; color: #95a5a6; }
-
-/* Metadata Area */
-.metadata-grid {
-    margin: 15pt 0;
-    padding: 10pt;
-    background: #fdfdfd;
-    border: 0.5pt solid #e5e8e8;
-}
-
-.metadata-label { font-weight: bold; font-size: 9pt; color: #5d6d7e; }
-
-/* Cover Page */
-.cover-page {
-    height: 25cm; /* Slightly less than A4 to prevent spillover in xhtml2pdf */
-    width: 100%;
-    background-color: #34495e;
-    color: white;
-    text-align: center;
-}
-
-.cover-content {
-    padding-top: 5cm;
-    padding-left: 40pt;
-    padding-right: 40pt;
-}
-
-.cover-logo {
-    font-size: 40pt;
-    font-weight: 800;
-    letter-spacing: 0.3em;
-    margin-bottom: 20pt;
-}
-
-.cover-title {
-    font-size: 28pt;
-    font-weight: bold;
-    margin-bottom: 20pt;
-    color: white;
-}
-
-.cover-query {
-    font-size: 15pt;
-    font-style: italic;
-    line-height: 1.4;
-    margin: 40pt auto;
-    color: #ecf0f1;
-    max-width: 85%;
-}
-
-.cover-footer {
-    padding-top: 3cm;
-    font-size: 9.5pt;
-    color: #bdc3c7;
-    letter-spacing: 0.5pt;
-}
-
-/* Takeaway / Insight blocks from Markdown */
-blockquote {
-    margin: 1.5em 0;
-    padding: 12pt 20pt;
-    background-color: #f8f9fa;
-    border-left: 3pt solid #1e8449;
-    font-style: italic;
-    color: #2c3e50;
-}
-
-blockquote p {
-    margin-bottom: 0;
-}
-.metadata-grid {
-    margin: 20pt 0;
-    padding: 15pt;
-    background: #f8f9fa;
-    border: 1px solid #e5e8e8;
-}
-
-.metadata-row {
-    margin-bottom: 5pt;
-    font-size: 10pt;
-}
-
-.metadata-label { font-weight: bold; color: #5d6d7e; }
-
-/* Narrative layout */
-.narrative {
-    margin-top: 20pt;
-}
-
-.insights-list {
-    list-style-type: none;
-    padding-left: 0;
-}
-
-.insights-list li::before {
-    content: "-> ";
-    color: #1e8449;
-    font-weight: bold;
-}
-
-.disclaimer {
-    font-size: 9pt;
-    color: #5d6d7e;
-    font-style: italic;
-    margin-top: 40pt;
-    padding: 10pt;
-    border-top: 1px solid #e5e8e8;
-}
-
-.footer-version {
-    margin: 8pt 0;
-}
-
-.footer-hash {
-    font-family: Courier, monospace;
-    font-size: 8pt;
-    color: #95a5a6;
+    border: 0.5pt solid #cbd5e0;
+    font-size: 8.5pt;
+    vertical-align: top;
     word-wrap: break-word;
 }
 
-/* ===== DATA QUALIFICATIONS ===== */
-.data-qualifications {
-    background-color: #fff3cd;
-    border-left: 4px solid #ffc107;
-    padding: 12pt;
-    margin: 16pt 0;
-    page-break-inside: avoid;
+tr:nth-child(even) {
+    background-color: #f8fafc;
 }
 
-.data-qualifications h3 {
-    margin-top: 0;
-    color: #856404;
+/* --- Forensic Sections --- */
+.forensic-section {
+    margin-bottom: 25pt;
+    page-break-inside: auto; /* Allow tables to split */
 }
 
-.qualification-item {
-    margin: 6pt 0;
-    font-size: 9pt;
-    color: #856404;
-}
-
-/* ===== UTILITY CLASSES ===== */
-.no-break {
-    page-break-inside: avoid;
-}
-
-.page-break {
-    page-break-after: always;
-}
-
-.inline-metric {
+.section-title {
+    font-size: 14pt;
     font-weight: bold;
-    color: #3498db;
+    color: #2d3748;
+    border-bottom: 2pt solid #2d3748;
+    padding-bottom: 4pt;
+    margin-bottom: 10pt;
 }
 
-.text-muted {
-    color: #7f8c8d;
+/* --- Inference Specifics --- */
+.evidence-tag {
+    display: inline-block;
+    background-color: #ebf8ff;
+    color: #2b6cb0;
+    border: 0.5pt solid #bee3f8;
+    padding: 1pt 4pt;
+    font-family: monospace;
+    font-size: 8pt;
+    margin: 1pt;
 }
 
-.text-success {
-    color: #27ae60;
+.logic-path {
+    font-style: italic;
+    color: #4a5568;
 }
 
-.text-warning {
-    color: #f39c12;
+/* --- Narrative (Secondary) --- */
+.synthesis-content {
+    color: #2d3748;
+    font-size: 9.5pt;
+    line-height: 1.5;
 }
 
-.text-danger {
-    color: #e74c3c;
-}
+/* --- Utilities --- */
+.text-right { text-align: right; }
+.bold { font-weight: bold; }
+.monospace { font-family: monospace; }
+.v-spacer { height: 15pt; }
 
-/* ===== END OF STYLESHEET ===== */
+/* Page Breaking Rules */
+.page-break { page-break-before: always; }
+h1, h2, h3 { page-break-after: avoid; }
+table { page-break-inside: auto; }
+tr { page-break-inside: avoid; page-break-after: auto; }
+/* Utility */
+.text-success { color: #38a169; font-weight: bold; }
+.text-danger { color: #e53e3e; font-weight: bold; }
+.no-break { page-break-inside: avoid; }
+.footer-hash { font-family: monospace; font-size: 8pt; color: #a0aec0; }

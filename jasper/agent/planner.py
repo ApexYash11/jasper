@@ -1,7 +1,7 @@
 ﻿import uuid
-from typing import List, Any
+from typing import List, Any, Tuple
 from langchain_core.prompts import ChatPromptTemplate
-from ..core.state import Task
+from ..core.state import Task, ReportMode
 from .entity_extractor import EntityExtractor
 import json
 import re
@@ -14,6 +14,7 @@ AVAILABLE_TOOLS = ["income_statement"]
 
 PLANNER_PROMPT = """
 You are a financial research planner.
+ACTIVE REPORT MODE: {report_mode}
 
 Query Intent: {intent}
 Extracted Entities:
@@ -23,6 +24,11 @@ Available Tools:
 {available_tools}
 
 Your job:
+- Strictly adhere to the ACTIVE REPORT MODE. Do NOT generate tasks outside this scope.
+- BUSINESS_MODEL Mode: Prioritize narrative tasks concerning business quality, segments, and moat.
+- RISK_ANALYSIS Mode: Prioritize tasks investigating debt, concentration, and competitive threats.
+- FINANCIAL_EVIDENCE Mode: Create ONLY tasks that fetch raw financial statement data.
+
 - If intent is QUALITATIVE: Return empty task list (no data fetching needed). Synthesis will use domain knowledge only.
 - If intent is QUANTITATIVE: Break the query into explicit, ordered research tasks for data fetching.
 - If intent is MIXED: Create both qualitative synthesis tasks AND quantitative data-fetching tasks.
@@ -91,13 +97,35 @@ class Planner:
         
         return text[start_idx:]
 
-    async def plan(self, query: str) -> List[Task]:
+    def _infer_mode(self, query: str, intent_category: str) -> ReportMode:
+        """Determines report mode based on query keywords and intent."""
+        query_lower = query.lower()
+        
+        # Risk Priority
+        if any(w in query_lower for w in ["risk", "exposure", "concentration", "threat", "weakness"]):
+            return ReportMode.RISK_ANALYSIS
+            
+        # Financial Evidence Priority
+        if intent_category == "quantitative" or any(w in query_lower for w in ["revenue", "margin", "earnings", "profit", "debt", "balance sheet"]):
+            return ReportMode.FINANCIAL_EVIDENCE
+            
+        # Business Model Priority (Qualitative focus)
+        if intent_category == "qualitative" or any(w in query_lower for w in ["business model", "strategy", "how they make money", "operations", "competitive", "advantage"]):
+            return ReportMode.BUSINESS_MODEL
+            
+        return ReportMode.GENERAL
+
+    async def plan(self, query: str) -> Tuple[List[Task], ReportMode]:
         self.logger.log("PLANNER_STARTED", {"query": query})
 
         # Preprocessing: Extract entities AND intent
         extraction_result = await self.extractor.extract(query)
         entities = extraction_result.entities
         intent = extraction_result.intent
+        
+        # Infer mode
+        report_mode = self._infer_mode(query, intent.category)
+        self.logger.log("MODE_INFERRED", {"mode": report_mode.value})
         
         # FIX 8: Fail fast if no entities extracted
         if not entities:
@@ -113,7 +141,8 @@ class Planner:
             query=query, 
             entities=entities_str, 
             available_tools=tools_str,
-            intent=intent.category
+            intent=intent.category,
+            report_mode=report_mode.value
         )])
         response = generate_result.generations[0][0].text
 
@@ -138,7 +167,7 @@ class Planner:
                 "intent": intent.category,
                 "reasoning": intent.reasoning
             })
-            return tasks  # Return empty task list for qualitative queries
+            return tasks, report_mode  # Return empty task list for qualitative queries
         
         for t in parsed.get("tasks", []):
             if not isinstance(t, dict) or "description" not in t:
@@ -167,4 +196,4 @@ class Planner:
             raise ValueError("Planner produced empty task list for non-qualitative query")
 
         self.logger.log("PLANNER_COMPLETED", {"task_count": len(tasks), "intent": intent.category})
-        return tasks
+        return tasks, report_mode

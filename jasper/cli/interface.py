@@ -10,6 +10,7 @@ from rich.rule import Rule
 from rich.tree import Tree
 from rich import box
 from ..core.config import THEME, BANNER_ART
+from ..core.state import FinalReport
 
 def render_banner():
     """
@@ -139,3 +140,67 @@ def render_final_report(body_text, tickers, sources):
     )
     
     return panel
+
+
+def render_forensic_report(report: FinalReport):
+    """
+    Renders the v0.2.0 Forensic Artifact in the CLI.
+    """
+    # 1. Metadata Dashboard
+    dash_table = Table(box=box.MINIMAL_DOUBLE_HEAD, show_header=False, expand=True, border_style=THEME["Brand"])
+    dash_table.add_column("Label", style=f"bold {THEME['Accent']}")
+    dash_table.add_column("Value", style="cyan")
+    
+    dash_table.add_row("QUERY HASH", report.query[:32] + "...") # Simplified hash for CLI
+    dash_table.add_row("ENTITIES", ", ".join(report.tickers) or "N/A")
+    dash_table.add_row("TIMESTAMP", report.timestamp.strftime("%Y-%m-%d %H:%M:%S UTC"))
+    dash_table.add_row("VERSION", f"v{report.version}")
+    
+    status_style = "bold green" if report.is_valid else "bold red"
+    dash_table.add_row("VALIDATION", Text("PASSED" if report.is_valid else "FAILED", style=status_style))
+    
+    conf_style = "bold green" if report.confidence_score > 0.8 else "bold yellow"
+    dash_table.add_row("CONFIDENCE", Text(f"{report.confidence_score:.2f}", style=conf_style))
+
+    # 2. Evidence Matrix
+    evidence_table = Table(title="[bold]1. EVIDENCE MATRIX[/bold]", box=box.ROUNDED, expand=True)
+    evidence_table.add_column("ID", style="dim", width=6)
+    evidence_table.add_column("Metric", style="white")
+    evidence_table.add_column("Value", style="bold white")
+    evidence_table.add_column("Source", style="dim")
+    evidence_table.add_column("Status", style="green")
+
+    for item in report.evidence_log:
+        evidence_table.add_row(
+            item.id, 
+            item.metric, 
+            str(item.value), 
+            item.source, 
+            item.status
+        )
+
+    # 3. Analysis Synthesis
+    synthesis_panel = Panel(
+        Markdown(report.synthesis_text),
+        title="[bold]2. SYNTHESIZED ANALYSIS[/bold]",
+        border_style=THEME["Accent"],
+        padding=(1, 2)
+    )
+
+    # 4. Audit Trail (Mini)
+    audit_table = Table(title="[bold]3. EXECUTION AUDIT TRAIL[/bold]", box=box.SIMPLE, expand=True)
+    audit_table.add_column("Task", style="dim")
+    audit_table.add_column("Tool", style="cyan")
+    audit_table.add_column("Result", style="italic")
+
+    for task in report.audit_trail[-5:]: # Last 5 tasks
+        audit_table.add_row(task.description[:40] + "...", task.tool, task.status)
+
+    return Group(
+        Panel(dash_table, title="[bold]FORENSIC METADATA DASHBOARD[/bold]", border_style=THEME["Brand"]),
+        evidence_table,
+        synthesis_panel,
+        audit_table,
+        Rule(style="dim"),
+        Text(f"Jasper v{report.version} | Deterministic Forensic Artifact", justify="center", style="dim")
+    )

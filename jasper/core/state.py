@@ -1,6 +1,14 @@
 from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any, List, Literal
 from datetime import datetime
+from enum import Enum
+
+# --- Report Modes ---
+class ReportMode(str, Enum):
+    BUSINESS_MODEL = "business_model"
+    RISK_ANALYSIS = "risk_analysis"
+    FINANCIAL_EVIDENCE = "financial_evidence"
+    GENERAL = "general"
 
 # Schema definitions for Jasper's internal state management
 class Task(BaseModel):
@@ -19,6 +27,28 @@ class ConfidenceBreakdown(BaseModel):
     inference_strength: float # logic depth
     overall: float
 
+# --- Forensic Models ---
+class EvidenceItem(BaseModel):
+    id: str = Field(..., description="Evidence ID (e.g., E1.1)")
+    metric: str = Field(..., description="Financial metric or data point")
+    value: Any = Field(..., description="The value of the metric")
+    period: str = Field(..., description="Time period for the value")
+    source: str = Field(..., description="Data provider source")
+    status: str = Field(default="VERIFIED", description="Verification status")
+
+class InferenceLink(BaseModel):
+    claim: str = Field(..., description="The analytical claim being made")
+    evidence_ids: List[str] = Field(..., description="List of evidence IDs supporting this claim")
+    logic_path: str = Field(..., description="Brief description of the logic used")
+    confidence: float = Field(default=1.0, description="Confidence in this specific inference")
+
+class TaskExecutionDetail(BaseModel):
+    task_id: str
+    description: str
+    tool: str
+    status: str
+    result_summary: str
+
 class validationresult(BaseModel):
     is_valid: bool = Field(..., description="Indicates if the state is valid")
     issues: List[str] = Field(default_factory=list, description="List of issues found during validation")
@@ -33,14 +63,21 @@ class FinalReport(BaseModel):
     
     # Metadata
     query: str = Field(..., description="Original user query")
+    report_mode: ReportMode = Field(default=ReportMode.GENERAL, description="The inferred analytical mode of the report")
     timestamp: datetime = Field(default_factory=datetime.utcnow, description="Report generation timestamp (UTC)")
-    version: str = Field(default="0.5.0", description="Jasper version at report generation time")
+    version: str = Field(default="0.2.0", description="Jasper version at report generation time")
     
     # Data sourcing
     data_sources: List[str] = Field(default_factory=list, description="List of data providers used (e.g., ['yfinance', 'Alpha Vantage'])")
     tickers: List[str] = Field(default_factory=list, description="Financial instruments analyzed")
     
-    # Analysis results
+    # Forensic Evidence & Analysis
+    evidence_log: List[EvidenceItem] = Field(default_factory=list, description="Structured log of all evidence artifacts")
+    inference_map: List[InferenceLink] = Field(default_factory=list, description="Map of claims to their supporting evidence")
+    logic_constraints: Dict[str, str] = Field(default_factory=dict, description="Constraints applied during synthesis (e.g. data gaps)")
+    audit_trail: List[TaskExecutionDetail] = Field(default_factory=list, description="Forensic audit of execution steps")
+    
+    # Results (Legacy/Secondary)
     synthesis_text: str = Field(..., description="Final synthesized analysis (markdown or plain text)")
     
     # Validation & confidence
@@ -56,6 +93,7 @@ class FinalReport(BaseModel):
 
 class Jasperstate(BaseModel):
     query: str = Field(..., description="The original user query")
+    report_mode: ReportMode = Field(default=ReportMode.GENERAL, description="The inferred analytical mode of the report")
 
     plan: List[Task] = Field(default_factory=list, description="List of tasks in the plan")
     current_task_index: int = Field(default=0, description="Index of the current task being executed")

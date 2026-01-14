@@ -26,12 +26,19 @@ class Synthesizer:
 
     prompt = ChatPromptTemplate.from_template("""
     ROLE: You are Jasper, a deterministic financial intelligence engine for institutional analysts.
-    TASK: Synthesize research data into a professional analyst memo.
+    ACTIVE REPORT MODE: {report_mode}
+    TASK: Synthesize research data into a professional analyst memo matching the ACTIVE REPORT MODE.
     
     User Query: {query}
     
     Research Data:
     {data}
+    
+    REPORT SCOPE CONSTRAINTS:
+    - BUSINESS_MODEL: Focus strictly on business quality, strategy, and moats.
+    - RISK_ANALYSIS: Focus strictly on exposures, concentration, and threats.
+    - FINANCIAL_EVIDENCE: Focus strictly on presenting verified financial metrics.
+    - GENERAL: Provide a balanced overview.
     
     REPORT STRUCTURE (MANDATORY):
     
@@ -69,7 +76,11 @@ class Synthesizer:
     """)
     
     chain = prompt | self.llm
-    response = await chain.ainvoke({"query": state.query, "data": data_context})
+    response = await chain.ainvoke({
+        "query": state.query, 
+        "data": data_context,
+        "report_mode": state.report_mode.value
+    })
     
     self.logger.log("SYNTHESIS_COMPLETED", {"confidence": state.validation.confidence})
     return response.content

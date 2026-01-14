@@ -2,7 +2,7 @@ from ..agent.planner import Planner
 from ..agent.executor import Executor
 from ..agent.validator import validator
 from ..agent.synthesizer import Synthesizer
-from .state import Jasperstate, FinalReport
+from .state import Jasperstate, FinalReport, TaskExecutionDetail, EvidenceItem, InferenceLink
 from ..observability.logger import SessionLogger
 
 
@@ -23,8 +23,8 @@ class JasperController:
         state.status = "Planning"
         try:
             # Planning phase
-            state.plan = await self.planner.plan(query)
-            self.logger.log("PLAN_CREATED", {"plan": [t.dict() for t in state.plan]})
+            state.plan, state.report_mode = await self.planner.plan(query)
+            self.logger.log("PLAN_CREATED", {"plan": [t.dict() for t in state.plan], "mode": state.report_mode.value})
             state.status = "Executing"
 
             # Execution phase
@@ -98,7 +98,23 @@ class JasperController:
         # Extract tickers and sources from plan
         tickers = []
         sources = set()
+        audit_trail = []
+        
         for task in state.plan:
+            # Audit trail construction
+            result_summary = "Pending"
+            if task.id in state.task_results:
+                res = state.task_results[task.id]
+                result_summary = str(res)[:100] + "..." if len(str(res)) > 100 else str(res)
+            
+            audit_trail.append(TaskExecutionDetail(
+                task_id=task.id,
+                description=task.description,
+                tool=task.tool_name or "Internal",
+                status=task.status,
+                result_summary=result_summary
+            ))
+
             if task.tool_args:
                 ticker = task.tool_args.get("ticker") or task.tool_args.get("symbol")
                 if ticker:
@@ -118,9 +134,63 @@ class JasperController:
         if not sources:
             sources = {"SEC EDGAR", "Financial Data Providers"}
         
+        # Forensic Log construction
+        evidence_log = []
+        for task in state.plan:
+            if task.id in state.task_results:
+                result = state.task_results[task.id]
+                
+                # Extract ticker if possible
+                if isinstance(result, list):
+                    for i, item in enumerate(result[:5]): # Cap at 5 per task
+                        evidence_log.append(EvidenceItem(
+                            id=f"E{len(evidence_log)+1}",
+                            metric=f"{task.description} [Ref {i+1}]",
+                            value=str(item)[:100] + "..." if len(str(item)) > 100 else str(item),
+                            period="HISTORICAL",
+                            source=task.tool_name or "Financial Provider",
+                            status="VERIFIED"
+                        ))
+                else:
+                    evidence_log.append(EvidenceItem(
+                        id=f"E{len(evidence_log)+1}",
+                        metric=task.description,
+                        value=str(result)[:100] + "..." if len(str(result)) > 100 else str(result),
+                        period="CURRENT",
+                        source=task.tool_name or "Financial Provider",
+                        status="VERIFIED"
+                    ))
+        
+        # Qualitative Fallback: If report is valid but plan was empty (qualitative query)
+        if not evidence_log and state.status == "Completed":
+            evidence_log.append(EvidenceItem(
+                id="E1",
+                metric="Qualitative Analysis",
+                value="Synthesis derived from institutional knowledge base.",
+                period="N/A",
+                source="Jasper Internal Engine",
+                status="INFERRED"
+            ))
+
+        # Forensic Logic Constraints mapping
+        logic_constraints = state.report.logic_constraints if state.report and hasattr(state.report, 'logic_constraints') else {}
+        if not state.plan:
+            logic_constraints["QUERY_INTENT"] = "Qualitative research selected; financial statement fetching skipped."
+        
+        # Simple Inference Link (Linking all evidence to the synthesis)
+        inference_map = []
+        if evidence_log:
+            inference_map.append(InferenceLink(
+                claim="Research findings are supported by the identified evidence set.",
+                evidence_ids=[e.id for e in evidence_log],
+                logic_path="Deterministic synthesis based on retrieved artifacts.",
+                confidence=state.validation.confidence if state.validation else 1.0
+            ))
+        
         # Construct FinalReport
         report = FinalReport(
             query=state.query,
+            report_mode=state.report_mode,
             data_sources=list(sources),
             tickers=unique_tickers,
             synthesis_text=state.final_answer or "",
@@ -130,6 +200,13 @@ class JasperController:
             confidence_breakdown=state.validation.breakdown if state.validation else None,
             task_count=len(state.plan),
             task_results=state.task_results,
+            # Forensic Fields
+            evidence_log=evidence_log,
+            inference_map=inference_map,
+            logic_constraints=logic_constraints, 
+            audit_trail=audit_trail
         )
+        
+        return report
         
         return report

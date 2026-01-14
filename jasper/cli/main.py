@@ -7,6 +7,7 @@ from rich.live import Live
 from rich.panel import Panel
 from rich.prompt import Prompt
 from pathlib import Path
+from datetime import datetime
 
 # Import core components
 from ..core.controller import JasperController
@@ -23,7 +24,7 @@ from ..core.state import Jasperstate, FinalReport
 from ..export.pdf import export_report_to_pdf, export_report_html
 
 # Import UI components
-from .interface import render_banner, render_mission_board, render_final_report
+from .interface import render_banner, render_mission_board, render_final_report, render_forensic_report
 from ..core.config import THEME
 
 console = Console()
@@ -203,7 +204,24 @@ async def execute_research(query: str, console: Console) -> Jasperstate:
         if not sources:
             sources = {"SEC EDGAR"} # Default fallback source
         
-        console.print(render_final_report(answer, unique_tickers, list(sources)))
+        # v0.2.0: Forensic Rendering if report exists
+        if state.report:
+            console.print(render_forensic_report(state.report))
+            
+            # AUTO-EXPORT
+            try:
+                export_dir = Path("exports")
+                export_dir.mkdir(exist_ok=True)
+                clean_query = "".join(c if c.isalnum() else "_" for c in state.query[:30])
+                pdf_filename = f"report_{clean_query}_{datetime.now().strftime('%H%M%S')}.pdf"
+                pdf_path = export_report_to_pdf(state.report, str(export_dir / pdf_filename))
+                console.print(f"\n[bold green]✅ Forensic Artifact Exported:[/bold green] {pdf_path}")
+            except Exception as e:
+                console.print(f"\n[dim yellow]⚠ Auto-export failed: {e}[/dim yellow]")
+        else:
+            # Fallback to legacy memo
+            console.print(render_final_report(answer, unique_tickers, list(sources)))
+        
         console.print("\n")
     
     return state

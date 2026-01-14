@@ -14,6 +14,7 @@ Architecture:
 
 import hashlib
 import os
+import logging
 from pathlib import Path
 from typing import Optional
 from datetime import datetime
@@ -23,6 +24,8 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 from markdown_it import MarkdownIt
 
 from ..core.state import FinalReport
+
+logger = logging.getLogger(__name__)
 
 
 def render_markdown(text: str) -> str:
@@ -151,15 +154,34 @@ def compile_html_to_pdf(html_content: str, output_path: str) -> str:
         import contextlib
         import sys
         import logging
+        import os
         
-        # Suppress WeasyPrint loggers and standard error streams (GTK+ missing on Windows)
-        logging.getLogger("weasyprint").setLevel(logging.CRITICAL)
-        with contextlib.redirect_stdout(open(os.devnull, "w")), contextlib.redirect_stderr(open(os.devnull, "w")):
-            from weasyprint import HTML
-            HTML(string=html_content).write_pdf(target=str(pdf_path))
-        return str(pdf_path.resolve())
-    except (ImportError, Exception):
+        # WINDOWS DLL COLLISION FIX: 
+        # Tesseract-OCR often bundles an incompatible libgobject-2.0-0.dll.
+        # We temporarily remove it from PATH to let WeasyPrint find the correct one or fail cleanly.
+        original_path = os.environ.get("PATH", "")
+        if sys.platform == "win32":
+            paths = original_path.split(os.pathsep)
+            # Remove Tesseract paths which are known to cause collisions
+            scrubbed_paths = [p for p in paths if "Tesseract-OCR" not in p]
+            os.environ["PATH"] = os.pathsep.join(scrubbed_paths)
+
+        try:
+            # Suppress WeasyPrint loggers and standard error streams (GTK+ missing on Windows)
+            logging.getLogger("weasyprint").setLevel(logging.CRITICAL)
+            with contextlib.redirect_stdout(open(os.devnull, "w")), contextlib.redirect_stderr(open(os.devnull, "w")):
+                from weasyprint import HTML
+                HTML(string=html_content).write_pdf(target=str(pdf_path))
+            logger.info(f"PDF successfully rendered using WeasyPrint: {pdf_path}")
+            return str(pdf_path.resolve())
+        finally:
+            # Always restore PATH
+            if sys.platform == "win32":
+                os.environ["PATH"] = original_path
+
+    except (ImportError, Exception) as e:
         # Gracefully handle missing GTK+ or WeasyPrint
+        logger.warning(f"RENDERER FALLBACK: WeasyPrint missing or failed. Using xhtml2pdf (v0.2.0 compatibility mode). Error: {e}")
         pass
 
     # --- Fallback to xhtml2pdf (Compatible) ---
@@ -215,21 +237,29 @@ def export_report_to_pdf(
     
     Returns:
         Absolute path to generated PDF file
-    
-    Raises:
-        ValueError: If report is invalid and validate=True
-        FileNotFoundError: If templates/styles not found
-        RuntimeError: If PDF generation fails
     """
-    # Validation gate: fail loudly if report is incomplete
-    if validate and not report.is_valid:
-        issues_str = "\n  - ".join(report.validation_issues or ["Unknown issue"])
-        raise ValueError(
-            f"Cannot export invalid report. Validation failed with issues:\n"
-            f"  - {issues_str}\n"
-            f"Confidence: {report.confidence_score:.1%}\n"
-            f"Please review data completeness and retry synthesis."
-        )
+    # FORENSIC VALIDATION GATE
+    if validate:
+        errors = []
+        if not report.is_valid:
+            errors.append("Report validation flag is FALSE")
+        if not report.evidence_log:
+            errors.append("Forensic Evidence Log is EMPTY")
+        
+        # Check for reference integrity
+        evidence_ids = {e.id for e in report.evidence_log}
+        for inf in report.inference_map:
+            for eid in inf.evidence_ids:
+                if eid not in evidence_ids:
+                    errors.append(f"Inference claim '{inf.claim[:40]}...' references missing evidence ID: {eid}")
+
+        if errors:
+            issues_str = "\n  - ".join(errors + (report.validation_issues or []))
+            raise ValueError(
+                f"Cannot export forensic artifact. Integrity checks failed:\n"
+                f"  - {issues_str}\n"
+                f"Confidence: {report.confidence_score:.1%}\n"
+            )
     
     # Render HTML from report
     html = render_report_html(report)

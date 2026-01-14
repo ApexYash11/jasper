@@ -30,26 +30,12 @@ def sample_report() -> FinalReport:
     return FinalReport(
         query="What is Apple's financial performance in Q4 2024?",
         timestamp=datetime(2024, 12, 15, 14, 30, 0),
-        version="0.5.0",
+        version="0.2.0",
         data_sources=["yfinance", "Alpha Vantage"],
         tickers=["AAPL"],
         synthesis_text="""
-        <h3>Revenue Performance</h3>
-        <p>
-        Apple reported strong Q4 2024 performance with revenue of $123.5B, 
-        representing a 12% year-over-year increase. Key drivers include:
-        </p>
-        <ul>
-            <li><strong>iPhone Sales:</strong> $62.3B (up 8%)</li>
-            <li><strong>Services:</strong> $24.1B (up 18%)</li>
-            <li><strong>Wearables/Other:</strong> $18.2B (up 9%)</li>
-        </ul>
-        
-        <h3>Profitability</h3>
-        <p>
-        Operating margin expanded to 32.4%, driven by improved gross margins 
-        and operational efficiency. Net income reached $39.6B.
-        </p>
+        ### Revenue Performance
+        Apple reported strong Q4 2024 performance with revenue of $123.5B.
         """,
         is_valid=True,
         validation_issues=[],
@@ -63,9 +49,12 @@ def sample_report() -> FinalReport:
         task_count=3,
         task_results={
             "task_1": {"data": "revenue_data", "status": "completed"},
-            "task_2": {"data": "margin_data", "status": "completed"},
-            "task_3": {"data": "valuation_data", "status": "completed"},
         },
+        # Forensic Fields
+        evidence_log=[],
+        inference_map=[],
+        logic_constraints={"Scope": "Testing"},
+        audit_trail=[]
     )
 
 
@@ -102,8 +91,8 @@ def test_html_rendering(sample_report):
     assert "92" in html  # confidence_score as percentage
     
     # Verify semantic structure
-    assert "cover-section" in html
-    assert "confidence-metrics" in html
+    assert "cover-page" in html
+    assert "confidence-metrics" in html or "callout-confidence" in html
     assert "report-section" in html
     
     # Verify no network dependencies
