@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any, List, Literal
 from datetime import datetime
 from enum import Enum
+from .. import __version__
 
 # --- Report Modes ---
 class ReportMode(str, Enum):
@@ -21,6 +22,7 @@ class Task(BaseModel):
 
 # --- Confidence Breakdown ---
 # Provides a detailed view of the confidence score components
+
 class ConfidenceBreakdown(BaseModel):
     data_coverage: float      # % of required data fetched
     data_quality: float       # provider reliability
@@ -65,7 +67,7 @@ class FinalReport(BaseModel):
     query: str = Field(..., description="Original user query")
     report_mode: ReportMode = Field(default=ReportMode.GENERAL, description="The inferred analytical mode of the report")
     timestamp: datetime = Field(default_factory=datetime.utcnow, description="Report generation timestamp (UTC)")
-    version: str = Field(default="0.2.0", description="Jasper version at report generation time")
+    version: str = Field(default=__version__, description="Jasper version at report generation time")
     
     # Data sourcing
     data_sources: List[str] = Field(default_factory=list, description="List of data providers used (e.g., ['yfinance', 'Alpha Vantage'])")
