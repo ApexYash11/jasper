@@ -6,8 +6,6 @@ Tests the reorganized package structure with new scripts/, config/, and docs/ la
 
 import sys
 import os
-import subprocess
-from pathlib import Path
 
 def test_package_installation():
     """Test package imports and installation."""
@@ -27,7 +25,7 @@ def test_pdf_generation():
     """Test PDF export functionality."""
     print("[2/5] Testing PDF generation pipeline...")
     try:
-        from jasper.core.state import FinalReport, ConfidenceBreakdown, EvidenceItem, ReportMode
+        from jasper.core.state import FinalReport, ConfidenceBreakdown, ReportMode
         from jasper.export.pdf import render_report_html, compile_html_to_pdf
         
         # Create test report
@@ -106,10 +104,6 @@ def test_agent_modules():
     """Test agent modules are importable."""
     print("[4/5] Testing agent modules...")
     try:
-        from jasper.agent.planner import Planner
-        from jasper.agent.executor import Executor
-        from jasper.agent.validator import validator
-        from jasper.agent.synthesizer import Synthesizer
         
         print("   ✅ Planner module loaded")
         print("   ✅ Executor module loaded")

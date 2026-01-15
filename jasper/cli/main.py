@@ -4,10 +4,8 @@ import os
 from typing import Optional
 from rich.console import Console
 from rich.live import Live
-from rich.panel import Panel
 from rich.prompt import Prompt
 from pathlib import Path
-from datetime import datetime
 
 # Import core components
 from ..core.controller import JasperController
@@ -143,30 +141,30 @@ async def execute_research(query: str, console: Console) -> Jasperstate:
             # LLM Service Errors
             if error_source == "llm_service":
                 console.print(f"[yellow]⚠ LLM Service Error:[/yellow] {state.error}")
-                console.print(f"[dim]The AI model (OpenRouter) is temporarily unavailable or rate-limited.[/dim]")
-                console.print(f"[dim]Suggestion: Wait a moment and try again, or check your OpenRouter quota.[/dim]")
+                console.print("[dim]The AI model (OpenRouter) is temporarily unavailable or rate-limited.[/dim]")
+                console.print("[dim]Suggestion: Wait a moment and try again, or check your OpenRouter quota.[/dim]")
             elif error_source == "llm_auth":
                 console.print(f"[yellow]⚠ LLM Authentication Error:[/yellow] {state.error}")
-                console.print(f"[dim]Your OPENROUTER_API_KEY may be invalid or expired.[/dim]")
-                console.print(f"[dim]Suggestion: Check your .env file and ensure the key is correct.[/dim]")
+                console.print("[dim]Your OPENROUTER_API_KEY may be invalid or expired.[/dim]")
+                console.print("[dim]Suggestion: Check your .env file and ensure the key is correct.[/dim]")
             elif error_source == "llm_timeout":
                 console.print(f"[yellow]⚠ LLM Timeout:[/yellow] {state.error}")
-                console.print(f"[dim]The request to the AI model took too long.[/dim]")
-                console.print(f"[dim]Suggestion: Try again, or try a simpler query.[/dim]")
+                console.print("[dim]The request to the AI model took too long.[/dim]")
+                console.print("[dim]Suggestion: Try again, or try a simpler query.[/dim]")
             elif error_source in ("llm_unknown", "llm"):
                 console.print(f"[yellow]⚠ Answer Synthesis Error:[/yellow] {state.error}")
-                console.print(f"[dim]Failed to generate the final answer. Data was fetched but answer generation failed.[/dim]")
-                console.print(f"[dim]Suggestion: Try again or simplify your query.[/dim]")
+                console.print("[dim]Failed to generate the final answer. Data was fetched but answer generation failed.[/dim]")
+                console.print("[dim]Suggestion: Try again or simplify your query.[/dim]")
             # Data Provider Errors
             elif error_source == "data_provider":
                 console.print(f"[yellow]⚠ Data Provider Error:[/yellow] {state.error}")
-                console.print(f"[dim]Could not fetch financial data from available providers.[/dim]")
-                console.print(f"[dim]Suggestion: Check the ticker symbol (e.g., AAPL, RELIANCE.NS, INFY.NS) or try a different company.[/dim]")
+                console.print("[dim]Could not fetch financial data from available providers.[/dim]")
+                console.print("[dim]Suggestion: Check the ticker symbol (e.g., AAPL, RELIANCE.NS, INFY.NS) or try a different company.[/dim]")
             # Query Issues
             elif error_source == "query":
                 console.print(f"[yellow]⚠ Query Error:[/yellow] {state.error}")
-                console.print(f"[dim]The query could not be understood or mapped to a tool.[/dim]")
-                console.print(f"[dim]Suggestion: Try rephrasing with a company name or ticker symbol.[/dim]")
+                console.print("[dim]The query could not be understood or mapped to a tool.[/dim]")
+                console.print("[dim]Suggestion: Try rephrasing with a company name or ticker symbol.[/dim]")
             # Generic
             else:
                 console.print(f"Error: {state.error}")
@@ -310,8 +308,6 @@ def doctor_command():
     
     # Check 4: Try importing core modules
     try:
-        from ..core.controller import JasperController
-        from ..core.state import Jasperstate
         from ..core.llm import get_llm
         console.print("[green]✓[/green] Core modules import successfully")
     except ImportError as e:
@@ -322,14 +318,14 @@ def doctor_command():
     if llm_key:
         try:
             from ..core.llm import get_llm
-            llm = get_llm(temperature=0)
+            get_llm(temperature=0)
             console.print("[green]✓[/green] LLM initialization works")
         except Exception as e:
             console.print(f"[yellow]⚠[/yellow] LLM initialization failed: {e}")
             issues.append("LLM initialization issue (check your OPENROUTER_API_KEY)")
     
     # Summary
-    console.print(f"\n")
+    console.print("\n")
     if not issues:
         console.print("[bold green]All checks passed! Jasper is ready to use.[/bold green]")
         raise typer.Exit(code=0)
@@ -465,7 +461,7 @@ def export_command(format: str = "pdf", out: str = "report.pdf"):
         elif format == "html":
             html_path = export_report_html(_last_report, out)
             console.print(f"[bold green]✅ HTML exported:[/bold green] {html_path}")
-            console.print(f"[dim]Open in browser to preview layout[/dim]")
+            console.print("[dim]Open in browser to preview layout[/dim]")
             
         else:
             console.print(f"[bold {THEME['Error']}]Error:[/bold {THEME['Error']}] Unsupported format '{format}'")

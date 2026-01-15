@@ -1,4 +1,4 @@
-from typing import List, Any, Tuple, Literal
+from typing import List, Any, Literal
 from pydantic import BaseModel, ValidationError
 from langchain_core.prompts import ChatPromptTemplate
 import json

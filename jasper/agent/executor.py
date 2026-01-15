@@ -1,7 +1,6 @@
 ﻿from ..core.state import Task, Jasperstate
 from ..tools.financials import FinancialDataRouter, FinancialDataError
 from ..observability.logger import SessionLogger
-import json
 
 
 # --- Executor ---
@@ -50,7 +49,6 @@ class Executor:
 
                 # Attempt with retries based on state.max_retries
                 attempts = 0
-                last_exc = None
                 while attempts <= state.max_retries:
                     try:
                         result = await self.financial_router.fetch_income_statement(ticker)

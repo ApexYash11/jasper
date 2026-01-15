@@ -58,7 +58,7 @@ The company generates revenue through:
     inference_map=[]
 )
 
-print(f"   ✅ Report created")
+print("   ✅ Report created")
 print(f"      Query: {report.query}")
 print(f"      Mode: {report.report_mode}")
 print(f"      Confidence: {report.confidence_score:.1%}")

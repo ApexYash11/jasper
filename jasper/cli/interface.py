@@ -71,7 +71,7 @@ def render_mission_board(tasks, overall_status=""):
                 if int(time.time() * 5) % 2 == 0:
                     style = f"bold {THEME['Accent']}"
                 else:
-                    style = f"bold white"
+                    style = "bold white"
             elif status == "success":
                 icon = "✔"
                 style = f"bold {THEME['Success']}"

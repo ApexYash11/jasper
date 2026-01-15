@@ -1,4 +1,3 @@
-import pytest
 from typer.testing import CliRunner
 from jasper.cli.main import app
 from jasper.core.controller import JasperController
@@ -8,7 +7,7 @@ from jasper.agent.validator import validator
 from jasper.agent.synthesizer import Synthesizer
 from jasper.core.state import Jasperstate
 
-from jasper.cli.interface import render_mission_board, render_banner, render_final_report
+from jasper.cli.interface import render_mission_board
 
 runner = CliRunner()
 

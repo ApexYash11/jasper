@@ -1,5 +1,5 @@
 import httpx 
-from typing import Optional, Dict, Any, List
+from typing import Dict, Any, List
 from .exceptions import DataProviderError
 
 class FinancialDataError(Exception):

@@ -1,6 +1,6 @@
 from typing import Any
 from langchain_core.prompts import ChatPromptTemplate
-from ..core.state import Task, Jasperstate, ConfidenceBreakdown
+from ..core.state import Jasperstate
 from ..observability.logger import SessionLogger
 
 

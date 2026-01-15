@@ -66,7 +66,7 @@ class JasperController:
                 # Distinguish LLM errors from other failures
                 error_msg = str(e)
                 if "524" in error_msg or "provider returned error" in error_msg.lower():
-                    state.error = f"LLM service error (code 524): Temporary rate limit. Please try again in a moment."
+                    state.error = "LLM service error (code 524): Temporary rate limit. Please try again in a moment."
                     state.error_source = "llm_service"
                 elif "401" in error_msg or "unauthorized" in error_msg.lower():
                     state.error = "LLM authentication failed. Check your OpenRouter API key."
