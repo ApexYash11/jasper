@@ -193,8 +193,12 @@ def render_forensic_report(report: FinalReport):
     audit_table.add_column("Tool", style="cyan")
     audit_table.add_column("Result", style="italic")
 
-    for task in report.audit_trail[-5:]: # Last 5 tasks
-        audit_table.add_row(task.description[:40] + "...", task.tool, task.status)
+    if report.audit_trail:
+        for task in report.audit_trail[-5:]: # Last 5 tasks
+            audit_table.add_row(task.description[:40] + "...", task.tool, task.status)
+    else:
+        # Show message for qualitative analysis
+        audit_table.add_row("[dim]No financial data tasks[/dim]", "[dim]N/A[/dim]", "[dim]Qualitative analysis[/dim]")
 
     return Group(
         Panel(dash_table, title="[bold]FORENSIC METADATA DASHBOARD[/bold]", border_style=THEME["Brand"]),
