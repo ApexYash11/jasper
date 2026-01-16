@@ -34,11 +34,18 @@ class validator:
         # Calculate Confidence Breakdown
         # Handle case where plan is empty (qualitative queries with no financial data fetch)
         if not state.plan:
-            # Qualitative analysis mode - use answer quality as proxy
-            data_coverage = 1.0  # N/A for qualitative
-            data_quality = 0.85  # Default for knowledge-based responses
-            inference_strength = 0.8
+            # QUALITATIVE MODE: No financial data fetching occurred.
+            # This is intentional for business model/strategy questions.
+            # Confidence metrics are set to reasonable defaults:
+            # - data_coverage: 1.0 (N/A - not applicable for qualitative)
+            # - data_quality: 0.85 (knowledge-based response quality baseline)
+            # - inference_strength: 0.8 (high for domain expertise, lower for extrapolation)
+            # These are NOT claims about data coverage, but signal confidence in LLM synthesis.
+            data_coverage = 1.0  # N/A - no data fetching occurred
+            data_quality = 0.85  # Default for knowledge-based responses (LLM domain expertise)
+            inference_strength = 0.8  # Domain knowledge is moderately strong without numeric evidence
         else:
+            # QUANTITATIVE MODE: Financial data was fetched and analyzed.
             data_coverage = len(state.task_results) / len(state.plan) if state.plan else 0.0
             
             data_quality = 1.0
@@ -55,6 +62,7 @@ class validator:
                 data_quality = 0.0
 
             inference_strength = 0.9 if is_valid else 0.7
+        
         # Calculate confidence even if there are minor issues
         # Major issues reduce confidence, but don't zero it out completely
         overall_confidence = round(data_coverage * data_quality * inference_strength, 2)

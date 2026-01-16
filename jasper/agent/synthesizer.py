@@ -21,7 +21,12 @@ class Synthesizer:
     data_context = ""
     for task_id, result in state.task_results.items():
         task = next((t for t in state.plan if t.id == task_id), None)
-        desc = task.description if task else "Unknown Task"
+        # FIX #8: Handle null task reference gracefully
+        if not task:
+            self.logger.log("SYNTHESIZER_ORPHANED_RESULT", {"task_id": task_id})
+            desc = "Unknown Task (orphaned result)"
+        else:
+            desc = task.description
         data_context += f"Task: {desc}\nData: {result}\n\n"
 
     prompt = ChatPromptTemplate.from_template("""

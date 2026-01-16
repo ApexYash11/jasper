@@ -37,12 +37,20 @@ Rules for entities:
 - Do NOT guess
 
 Rules for intent classification:
-- "quantitative": Query asks for financial metrics (revenue, earnings, margins, growth rates, valuations, debt levels)
-- "qualitative": Query asks for explanations (business model, strategy, competitive position, how they make money, operations)
+- "quantitative": Query asks for financial metrics, performance data, or forward-looking estimates
+  Keywords: revenue, earnings, margins, growth rates, valuations, debt levels, price targets, 
+  expected returns, potential gains, stock performance, earnings growth, profit margins, ROE, 
+  cash flow, balance sheet metrics, or ANY metric/measurement request
+- "qualitative": Query asks for explanations or narrative understanding
+  Keywords: business model, strategy, competitive position, how they make money, operations,
+  moat, management quality, industry dynamics
 - "mixed": Query contains both types of questions
 
 Examples:
 - "What is Apple's revenue?" → quantitative
+- "What is the growth potential for Nvidia?" → quantitative
+- "How much increment in stocks can we expect?" → quantitative
+- "What are Tesla's expected returns in 6 months?" → quantitative
 - "Explain Uber's business model" → qualitative
 - "How does Amazon make money?" → qualitative
 - "Compare Tesla and Ford operating margins" → quantitative

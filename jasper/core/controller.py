@@ -100,12 +100,20 @@ class JasperController:
         sources = set()
         audit_trail = []
         
+        def safe_truncate(obj, max_len=100):
+            """Safely truncate object to string without raising on non-serializable types."""
+            try:
+                s = str(obj)
+                return s[:max_len] + "..." if len(s) > max_len else s
+            except Exception as e:
+                return f"<non-serializable: {type(obj).__name__}>"
+        
         for task in state.plan:
             # Audit trail construction
             result_summary = "Pending"
             if task.id in state.task_results:
                 res = state.task_results[task.id]
-                result_summary = str(res)[:100] + "..." if len(str(res)) > 100 else str(res)
+                result_summary = safe_truncate(res, max_len=100)
             
             audit_trail.append(TaskExecutionDetail(
                 task_id=task.id,
@@ -146,7 +154,7 @@ class JasperController:
                         evidence_log.append(EvidenceItem(
                             id=f"E{len(evidence_log)+1}",
                             metric=f"{task.description} [Ref {i+1}]",
-                            value=str(item)[:100] + "..." if len(str(item)) > 100 else str(item),
+                            value=safe_truncate(item, max_len=100),
                             period="HISTORICAL",
                             source=task.tool_name or "Financial Provider",
                             status="VERIFIED"
@@ -155,7 +163,7 @@ class JasperController:
                     evidence_log.append(EvidenceItem(
                         id=f"E{len(evidence_log)+1}",
                         metric=task.description,
-                        value=str(result)[:100] + "..." if len(str(result)) > 100 else str(result),
+                        value=safe_truncate(result, max_len=100),
                         period="CURRENT",
                         source=task.tool_name or "Financial Provider",
                         status="VERIFIED"
@@ -206,7 +214,5 @@ class JasperController:
             logic_constraints=logic_constraints, 
             audit_trail=audit_trail
         )
-        
-        return report
         
         return report

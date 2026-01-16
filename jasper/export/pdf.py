@@ -19,7 +19,7 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from markdown_it import MarkdownIt
 
-from ..core.state import FinalReport
+from ..core.state import FinalReport, ReportMode  # Add this import
 
 logger = logging.getLogger(__name__)
 
@@ -247,15 +247,20 @@ def export_report_to_pdf(
         errors = []
         if not report.is_valid:
             errors.append("Report validation flag is FALSE")
-        if not report.evidence_log:
-            errors.append("Forensic Evidence Log is EMPTY")
         
-        # Check for reference integrity
-        evidence_ids = {e.id for e in report.evidence_log}
-        for inf in report.inference_map:
-            for eid in inf.evidence_ids:
-                if eid not in evidence_ids:
-                    errors.append(f"Inference claim '{inf.claim[:40]}...' references missing evidence ID: {eid}")
+        # FIX #10: Allow empty evidence_log for qualitative reports
+        # Qualitative queries (business model, strategy) intentionally have no financial evidence
+        is_qualitative = report.report_mode in (ReportMode.BUSINESS_MODEL, ReportMode.GENERAL)
+        if not report.evidence_log and not is_qualitative:
+            errors.append("Forensic Evidence Log is EMPTY (only allowed for qualitative reports)")
+        
+        # Check for reference integrity (only if evidence_log is non-empty)
+        if report.evidence_log:
+            evidence_ids = {e.id for e in report.evidence_log}
+            for inf in report.inference_map:
+                for eid in inf.evidence_ids:
+                    if eid not in evidence_ids:
+                        errors.append(f"Inference claim '{inf.claim[:40]}...' references missing evidence ID: {eid}")
 
         if errors:
             issues_str = "\n  - ".join(errors + (report.validation_issues or []))
@@ -263,6 +268,7 @@ def export_report_to_pdf(
                 f"Cannot export forensic artifact. Integrity checks failed:\n"
                 f"  - {issues_str}\n"
                 f"Confidence: {report.confidence_score:.1%}\n"
+                f"Report Mode: {report.report_mode.value}\n"
             )
     
     # Render HTML from report
