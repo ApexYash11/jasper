@@ -266,7 +266,7 @@ def version_command():
             version = data["project"]["version"]
     except Exception:
         # Fallback if toml parsing fails
-        version = "1.0.3"
+        version = "1.0.4"
     
     console.print(f"[bold cyan]Jasper[/bold cyan] version [bold green]{version}[/bold green]")
 

@@ -9,8 +9,35 @@ from rich.markdown import Markdown
 from rich.rule import Rule
 from rich.tree import Tree
 from rich import box
+import re
 from ..core.config import THEME, BANNER_ART
 from ..core.state import FinalReport
+
+def _fix_markdown_tables(text: str) -> str:
+    """
+    Ensures markdown tables have blank lines before and after them
+    to assist the parser in identifying them correctly.
+    """
+    lines = text.split('\n')
+    new_lines = []
+    in_table = False
+    
+    for line in lines:
+        is_table_line = line.strip().startswith('|')
+        
+        if is_table_line and not in_table:
+            # Starting a table
+            if new_lines and new_lines[-1].strip():
+                new_lines.append('')
+            in_table = True
+        elif not is_table_line and in_table:
+            # Ending a table
+            if line.strip():
+                new_lines.append('')
+            in_table = False
+            
+        new_lines.append(line)
+    return '\n'.join(new_lines)
 
 def render_banner():
     """
@@ -120,8 +147,9 @@ def render_final_report(body_text, tickers, sources):
     header_group = Group(*header_rows)
     separator = Rule(style="dim")
     
-    # Body: Markdown
-    body = Markdown(body_text)
+    # Body: Markdown with table fix
+    fixed_body = _fix_markdown_tables(body_text)
+    body = Markdown(fixed_body)
     
     # Combine everything into a Group
     content_group = Group(
@@ -134,9 +162,11 @@ def render_final_report(body_text, tickers, sources):
     # Main Container Panel
     panel = Panel(
         content_group,
-        border_style="green",
+        border_style=THEME["Brand"],
         padding=(1, 2),
-        expand=False
+        expand=False,
+        title="[bold]EXECUTIVE RESEARCH MEMO[/bold]",
+        title_align="left"
     )
     
     return panel
@@ -180,9 +210,10 @@ def render_forensic_report(report: FinalReport):
         )
 
     # 3. Analysis Synthesis
+    fixed_synthesis = _fix_markdown_tables(report.synthesis_text)
     synthesis_panel = Panel(
-        Markdown(report.synthesis_text),
-        title="[bold]2. SYNTHESIZED ANALYSIS[/bold]",
+        Markdown(fixed_synthesis),
+        title="[bold] ANALYSIS SYNTHESIS[/bold]",
         border_style=THEME["Accent"],
         padding=(1, 2)
     )

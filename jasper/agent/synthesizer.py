@@ -58,10 +58,14 @@ class Synthesizer:
     
     4. FINANCIAL EVIDENCE
        - Tabular data support.
+       - Use clean Markdown tables with a blank line before and after.
+       - Bold all table headers.
        - Add a "> **What This Means**" callout after each major table.
+       - Note: If data is missing for a metric, use "N/A" or "---".
     
     5. LIMITATIONS & DATA GAPS
        - Explicit warning block for missing or low-confidence data.
+       - Format as: "### ⚠️ WARNING: [Issue Name]" followed by description.
     
     CONSTRAINTS:
     - Neutral, institutional tone. No conversational filler.

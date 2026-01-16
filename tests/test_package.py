@@ -18,7 +18,7 @@ print("\n[1/7] Testing version...")
 tests_total += 1
 try:
     import jasper
-    assert jasper.__version__ == "1.0.3"
+    assert jasper.__version__ == "1.0.4"
     print(f"   ✅ Jasper v{jasper.__version__}")
     tests_passed += 1
 except Exception as e:
