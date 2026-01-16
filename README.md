@@ -1,4 +1,4 @@
-﻿# Jasper Finance
+# Jasper Finance
 
 > **The terminal-native autonomous financial research agent.**  
 > Deterministic planning. Tool-grounded data. Validation gating. Human-trustworthy answers.
@@ -10,11 +10,14 @@
 
 ---
 
+![Hero Img](https://github.com/CyberBoyAyush/jasper/blob/main/assests/Screenshot%202026-01-10%20125137.png)
+
 ## 🎯 Why Jasper?
 
 Financial AI is often unreliable. Most tools produce confident-sounding answers that are frequently backed by hallucinations or missing data. **Jasper takes a different approach: it treats every question as a mission.**
 
 Instead of just "chatting," Jasper follows a rigorous 4-stage pipeline:
+
 1. **Plan** → Decomposes your question into structured research tasks.
 2. **Execute** → Fetches real-time data from authoritative APIs (Alpha Vantage, yfinance).
 3. **Validate** → Analyzes data completeness and financial logic.
@@ -26,25 +29,31 @@ Instead of just "chatting," Jasper follows a rigorous 4-stage pipeline:
 
 ## ✨ Key Features
 
-- 🧠 **Autonomous Planning**: Automatically breaks down complex questions (e.g., "Compare Apple and Microsoft's R&D spend vs Revenue") into executable sub-tasks.
-- ⚙️ **Tool-Grounded Data**: Direct integration with [Alpha Vantage](https://www.alphavantage.co/) and [yfinance](https://github.com/ranaroussi/yfinance).
-- ✅ **Validation Gate**: A "Mission Control" that blocks synthesis if data is missing or inconsistent.
-- 📊 **Confidence Scoring**: Transparent breakdown of data coverage, data quality, and inference strength.
-- 💬 **Interactive REPL**: A professional CLI environment for iterative research.
-- 🎨 **Rich Terminal UI**: Live progress boards, tree views, and structured reports.
-- 📄 **PDF Export**: Generate professional financial research reports and export as PDFs.
+* 🧠 **Autonomous Planning**: Automatically breaks down complex questions (e.g., "Compare Apple and Microsoft's R&D spend vs Revenue") into executable sub-tasks.
+* ⚙️ **Tool-Grounded Data**: Direct integration with [Alpha Vantage](https://www.alphavantage.co/) and [yfinance](https://github.com/ranaroussi/yfinance).
+* ✅ **Validation Gate**: A "Mission Control" that blocks synthesis if data is missing or inconsistent.
+* 📊 **Confidence Scoring**: Transparent breakdown of data coverage, data quality, and inference strength.
+* 💬 **Interactive REPL**: A professional CLI environment for iterative research.
+* 🎨 **Rich Terminal UI**: Live progress boards, tree views, and structured reports.
+* 📄 **PDF Export**: Generate professional financial research reports and export as PDFs.
 
 ---
 
 ## 🚀 Installation
 
-### Option 1: Pre-Built Executable (Recommended) ⭐
+### Option 1: Python pip (All Platforms)
+
+```bash
+pip install jasper-finance
+jasper interactive
+```
+
+### Option 2: Pre-Built Executable
 
 **No Python needed. Everything bundled including PDF renderer.**
 
 **Windows:**
-```powershell
-# Build locally:
+```bash
 git clone https://github.com/ApexYash11/jasper.git
 cd jasper
 .\scripts\build.ps1
@@ -59,18 +68,86 @@ chmod +x scripts/build.sh && ./scripts/build.sh
 ./dist/jasper/jasper interactive
 ```
 
-### Option 2: Docker (Production)
+### Option 3: Docker (Production)
 
 ```bash
 docker build -t jasper-finance:1.0.5 .
 docker run -it jasper-finance:1.0.5 interactive
 ```
 
-### Option 3: Python pip
+---
+
+## 🖥️ Platform-Specific Setup with Conda
+
+Using Conda ensures isolated environments and avoids dependency conflicts.
+
+### macOS
 
 ```bash
+# Install Homebrew (if not installed)
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# Install system dependencies
+brew install miniforge pkg-config cairo
+
+# Initialize Conda
+conda init zsh
+source ~/.zshrc
+
+# Create and activate environment
+conda create -n jasper python=3.11 -y
+conda activate jasper
+
+# Install Jasper
 pip install jasper-finance
+```
+
+### Linux (Ubuntu/Debian)
+
+```bash
+# Install system dependencies
+sudo apt update
+sudo apt install -y pkg-config libcairo2-dev
+
+# Install Miniforge
+wget https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh
+bash Miniforge3-Linux-x86_64.sh -b
+~/miniforge3/bin/conda init bash
+source ~/.bashrc
+
+# Create and activate environment
+conda create -n jasper python=3.11 -y
+conda activate jasper
+
+# Install Jasper
+pip install jasper-finance
+```
+
+### Windows
+
+```powershell
+# Install Miniforge from: https://github.com/conda-forge/miniforge/releases
+# Run the installer, then open Miniforge Prompt
+
+# Create and activate environment
+conda create -n jasper python=3.11 -y
+conda activate jasper
+
+# Install Jasper
+pip install jasper-finance
+```
+
+### Daily Usage (All Platforms)
+
+```bash
+# Activate environment
+conda activate jasper
+
+# Run Jasper
 jasper interactive
+
+# Deactivate when done
+conda deactivate
 ```
 
 ---
@@ -78,33 +155,38 @@ jasper interactive
 ## 🛠️ Setup (2 Minutes)
 
 ### Step 1: Get API Keys
+
 You need **two free API keys**:
 
 | API | Purpose | Get Key |
-|-----|---------|---------|
+| --- | --- | --- |
 | **OpenRouter** | LLM synthesis & planning | [openrouter.ai/keys](https://openrouter.ai/keys) |
 | **Alpha Vantage** | Financial data (statements) | [alphavantage.co/support](https://www.alphavantage.co/support/#api-key) *(free)* |
 
 ### Step 2: Configure Environment
-Create a `.env` file in your working directory:
 
+**macOS/Linux:**
 ```bash
-OPENROUTER_API_KEY=sk-or-v1-xxxxxxxxxxxxx
-ALPHA_VANTAGE_API_KEY=your-alpha-vantage-key
+export OPENROUTER_API_KEY="sk-or-v1-xxxxxxxxxxxxx"
+export ALPHA_VANTAGE_API_KEY="your-alpha-vantage-key"
 ```
 
-**Or** export in your terminal:
-```bash
-# macOS/Linux
-export OPENROUTER_API_KEY="sk-or-v1-xxxxxxxxxxxxx"
-export ALPHA_VANTAGE_API_KEY="your-key"
+To make permanent, add to `~/.zshrc` (macOS) or `~/.bashrc` (Linux).
 
-# Windows PowerShell
+**Windows PowerShell:**
+```powershell
 $env:OPENROUTER_API_KEY="sk-or-v1-xxxxxxxxxxxxx"
 $env:ALPHA_VANTAGE_API_KEY="your-key"
 ```
 
+**Or use a `.env` file** in your working directory:
+```
+OPENROUTER_API_KEY=sk-or-v1-xxxxxxxxxxxxx
+ALPHA_VANTAGE_API_KEY=your-alpha-vantage-key
+```
+
 ### Step 3: Verify Setup
+
 ```bash
 jasper doctor
 ```
@@ -122,38 +204,21 @@ Expected output:
 ## 📖 Quick Start
 
 ### Single Query (One-off Research)
+
 ```bash
 jasper ask "What is Nvidia's revenue trend over the last 3 years?"
 ```
 
-Output:
-```
-MISSION CONTROL
-[PLANNING] Breaking down your question...
-[EXECUTING] Fetching financial data...
-[VALIDATING] Checking data integrity...
-[SYNTHESIZING] Generating report...
-
-INTELLIGENCE MEMO
-Nvidia Revenue Analysis 2022-2024
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-[Report content...]
-```
-
 ### Interactive Mode (Multiple Queries)
+
 ```bash
 jasper interactive
 ```
 
-You'll see:
-```
-Interactive Mode. Type 'exit' to quit.
+### Export to PDF
 
-? Enter Financial Query: Analyze Tesla's operating margins.
-[Jasper processes your query...]
-
-? Enter Financial Query: Compare Ford vs GM revenue growth.
-[Next query...]
+```bash
+jasper export "Analyze Tesla's operating margins"
 ```
 
 ---
@@ -203,61 +268,12 @@ Interactive Mode. Type 'exit' to quit.
     └─────────────────────┘
 ```
 
-**Key Agents:**
-- **Planner**: Decomposes questions → creates task list
-- **Executor**: Runs tasks → fetches from APIs
-- **Validator**: Verifies completeness → blocks bad synthesis
-- **Synthesizer**: Writes professional report
-
----
-
-## 💡 Real Examples
-
-### Example 1: Single Query
-```bash
-$ jasper ask "What is Apple's revenue trend over the last 3 years?"
-
-MISSION CONTROL
-[EXECUTING] Fetching live market data...
-└── RESEARCH PLAN
-    ├── ✔ Fetch income statement for AAPL
-    ├── ✔ Calculate YoY growth percentages
-    └── ✔ Validate data consistency
-
-INTELLIGENCE MEMO
-Apple Inc. Revenue Analysis
-━━━━━━━━━━━━━━━━━━━━━━━━━
-- 2022: $394.3B
-- 2023: $383.3B (-2.8%)
-- 2024: $391.0B (+1.9%)
-
-Overall Confidence: 95%
-Data Coverage: 100%
-```
-
-### Example 2: Failed Research (By Design)
-```bash
-$ jasper ask "What is the revenue of a private company with no SEC filings?"
-
-MISSION CONTROL
-[VALIDATING] Verifying data integrity...
-
-Research Failed
-
-Validation Issues:
-  - No financial data available for private companies
-  - SEC filings required (Alpha Vantage provides only public data)
-
-Overall Confidence: 0%
-```
-This is **intentional**. No hallucinations.
-
 ---
 
 ## 🔧 All Commands
 
 | Command | What It Does |
-|---------|------------|
+| --- | --- |
 | `jasper ask "question"` | Execute a single research mission |
 | `jasper interactive` | Enter multi-query mode |
 | `jasper export <query>` | Generate research and export as PDF report |
@@ -269,22 +285,13 @@ This is **intentional**. No hallucinations.
 
 ## ❓ Troubleshooting
 
-**Problem**: `"Research Failed"`  
-**Solution**: This is by design. Check the validation issues output. Usually means data is incomplete or ticker doesn't exist.
-
-**Problem**: `API Rate Limit Hit`  
-**Solution**: Using free Alpha Vantage key? Limit is ~5 calls/min. Wait a moment or upgrade your key.
-
-**Problem**: `OPENROUTER_API_KEY not set`  
-**Solution**: 
-```bash
-echo $OPENROUTER_API_KEY  # Check if set
-export OPENROUTER_API_KEY="sk-or-v1-xxxxx"  # Set it
-jasper doctor  # Verify
-```
-
-**Problem**: `Ticker not found`  
-**Solution**: Verify the ticker symbol is correct (AAPL, not APPLE). For international stocks, use `.NS` or `.BSE` suffix.
+| Problem | Solution |
+| --- | --- |
+| `Research Failed` | By design. Check validation issues. Usually means incomplete data or invalid ticker. |
+| `API Rate Limit Hit` | Free Alpha Vantage: ~5 calls/min. Wait or upgrade key. |
+| `API KEY not set` | Run `jasper doctor` and export missing keys. |
+| `Ticker not found` | Use symbol (AAPL), not name (Apple). International: add suffix (.NS, .BSE). |
+| `pycairo build fails` | Install Cairo: `brew install cairo` (macOS) or `sudo apt install libcairo2-dev` (Linux). |
 
 ---
 
@@ -292,12 +299,11 @@ jasper doctor  # Verify
 
 Jasper Finance is released under the **MIT License** (2026, ApexYash).
 
-### What MIT Means
-- ✅ **Commercial Use**: Yes, you can use this commercially.
-- ✅ **Modification**: Yes, you can modify the code.
-- ✅ **Distribution**: Yes, you can redistribute.
-- ✅ **Private Use**: Yes, use for private projects.
-- ⚠️ **Warranty**: None. No liability for damages.
+* ✅ Commercial Use
+* ✅ Modification
+* ✅ Distribution
+* ✅ Private Use
+* ⚠️ No Warranty
 
 See [LICENSE](LICENSE) for full legal text.
 
@@ -305,14 +311,14 @@ See [LICENSE](LICENSE) for full legal text.
 
 ## 🔗 Links
 
-| What | Link |
-|------|------|
-| 📦 **PyPI Package** | [pypi.org/project/jasper-finance/](https://pypi.org/project/jasper-finance/) |
-| 💻 **GitHub Source** | [github.com/ApexYash11/jasper](https://github.com/ApexYash11/jasper) |
-| 🐛 **Report Issues** | [github.com/ApexYash11/jasper/issues](https://github.com/ApexYash11/jasper/issues) |
-| 📊 **Data: Alpha Vantage** | [alphavantage.co](https://www.alphavantage.co/) |
-| 📈 **Data: yfinance** | [github.com/ranaroussi/yfinance](https://github.com/ranaroussi/yfinance) |
-| 🤖 **LLM: OpenRouter** | [openrouter.ai](https://openrouter.ai/) |
+| Resource | Link |
+| --- | --- |
+| 📦 PyPI Package | [pypi.org/project/jasper-finance/](https://pypi.org/project/jasper-finance/) |
+| 💻 GitHub Source | [github.com/ApexYash11/jasper](https://github.com/ApexYash11/jasper) |
+| 🐛 Report Issues | [github.com/ApexYash11/jasper/issues](https://github.com/ApexYash11/jasper/issues) |
+| 📊 Data: Alpha Vantage | [alphavantage.co](https://www.alphavantage.co/) |
+| 📈 Data: yfinance | [github.com/ranaroussi/yfinance](https://github.com/ranaroussi/yfinance) |
+| 🤖 LLM: OpenRouter | [openrouter.ai](https://openrouter.ai/) |
 
 ---
 
