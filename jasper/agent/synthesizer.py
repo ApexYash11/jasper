@@ -58,6 +58,11 @@ class Synthesizer:
     
     4. FINANCIAL EVIDENCE
        - Tabular data support.
+       - MANDATORY TABLE FORMAT:
+         - Each row MUST be on a new line.
+         - The separator row (|---|) MUST follow the header row immediately.
+         - Do NOT combine multiple rows into a single string or line.
+         - Use clean, standard Markdown table syntax.
        - Use clean Markdown tables with a blank line before and after.
        - Bold all table headers.
        - Add a "> **What This Means**" callout after each major table.

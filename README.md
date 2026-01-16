@@ -62,8 +62,8 @@ chmod +x scripts/build.sh && ./scripts/build.sh
 ### Option 2: Docker (Production)
 
 ```bash
-docker build -t jasper-finance:1.0.4 .
-docker run -it jasper-finance:1.0.4 interactive
+docker build -t jasper-finance:1.0.5 .
+docker run -it jasper-finance:1.0.5 interactive
 ```
 
 ### Option 3: Python pip
@@ -316,4 +316,4 @@ See [LICENSE](LICENSE) for full legal text.
 
 ---
 
-**Built by analysts, for analysts. Stop guessing. Start researching. Jasper Finance v1.0.4**
+**Built by analysts, for analysts. Stop guessing. Start researching. Jasper Finance v1.0.5**

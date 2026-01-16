@@ -15,15 +15,21 @@ from ..core.state import FinalReport
 
 def _fix_markdown_tables(text: str) -> str:
     """
-    Ensures markdown tables have blank lines before and after them
-    to assist the parser in identifying them correctly.
+    Ensures markdown tables are properly formatted for Rich.
+    1. Fixes inline rows (replaces | | with newlines)
+    2. Ensures blank lines before/after tables
     """
+    # Fix inline row compression (common in some LLM outputs)
+    text = text.replace(" | | ", " |\n| ")
+    
     lines = text.split('\n')
     new_lines = []
     in_table = False
     
     for line in lines:
-        is_table_line = line.strip().startswith('|')
+        # A table line strictly starts and ends with | (common in our output)
+        # or has multiple pipes.
+        is_table_line = line.strip().startswith('|') and line.strip().endswith('|') and line.count('|') > 1
         
         if is_table_line and not in_table:
             # Starting a table
@@ -31,7 +37,8 @@ def _fix_markdown_tables(text: str) -> str:
                 new_lines.append('')
             in_table = True
         elif not is_table_line and in_table:
-            # Ending a table
+            # Maybe it's a multi-pipe line that doesn't start/end with | but is still table?
+            # Markdown tables must start/end with | for our parser
             if line.strip():
                 new_lines.append('')
             in_table = False

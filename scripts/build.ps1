@@ -2,7 +2,7 @@
 # Usage: .\build.ps1
 
 param(
-    [string]$Version = "1.0.4",
+    [string]$Version = "1.0.5",
     [switch]$OneFile = $false,
     [switch]$MinimalSize = $false
 )
