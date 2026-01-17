@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: jasper-finance
-Version: 1.0.7
+Version: 1.0.8
 Summary: Terminal-native autonomous financial research agent with deterministic planning and validation gating.
 Author-email: ApexYash <apex@example.com>
 License: MIT
