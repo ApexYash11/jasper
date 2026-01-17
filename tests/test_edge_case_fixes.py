@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-COMPREHENSIVE EDGE CASE TESTS - Jasper v1.0.5
+COMPREHENSIVE EDGE CASE TESTS - Jasper v1.0.7
 Tests all fixes for issues #1, #5-10
 
 Covers:

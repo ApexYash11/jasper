@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-CLI Integration Tests for Jasper v1.0.5
+CLI Integration Tests for Jasper v1.0.7
 Tests the reorganized package structure with new scripts/, config/, and docs/ layout.
 """
 
@@ -14,7 +14,7 @@ def test_package_installation():
         import jasper
         assert hasattr(jasper, '__version__')
         assert jasper.__version__ == "1.0.7"
-        print("   ✅ Package installed: jasper v1.0.5")
+        print("   ✅ Package installed: jasper v1.0.7")
         return True
     except Exception as e:
         print(f"   ❌ Package import failed: {e}")
@@ -144,7 +144,7 @@ def test_template_and_styles():
 
 if __name__ == "__main__":
     print("\n" + "="*60)
-    print("🧪 JASPER v1.0.5 CLI INTEGRATION TESTS")
+    print("🧪 JASPER v1.0.7 CLI INTEGRATION TESTS")
     print("="*60 + "\n")
     
     results = []
