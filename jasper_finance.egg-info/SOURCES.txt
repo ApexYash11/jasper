@@ -40,6 +40,7 @@ jasper_finance.egg-info/entry_points.txt
 jasper_finance.egg-info/requires.txt
 jasper_finance.egg-info/top_level.txt
 tests/test_cli_integration.py
+tests/test_edge_case_fixes.py
 tests/test_package.py
 tests/test_pdf_export.py
 tests/test_pdf_generation.py
