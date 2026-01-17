@@ -13,7 +13,7 @@ def test_package_installation():
     try:
         import jasper
         assert hasattr(jasper, '__version__')
-        assert jasper.__version__ == "1.0.5"
+        assert jasper.__version__ == "1.0.7"
         print("   ✅ Package installed: jasper v1.0.5")
         return True
     except Exception as e:
@@ -43,7 +43,7 @@ def test_pdf_generation():
             ),
             tickers=["TEST"],
             data_sources=["Test Source"],
-            version="1.0.5",
+            version="1.0.7",
             evidence_log=[]
         )
         
