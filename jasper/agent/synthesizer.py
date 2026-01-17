@@ -48,9 +48,9 @@ class Synthesizer:
     REPORT STRUCTURE (MANDATORY):
     
     1. EXECUTIVE SIGNAL BOX
-       > **COMPANY**: [Name]
-       > **CORE ENGINE**: [One-sentence business model logic]
-       > **THESIS**: [One-sentence research conclusion]
+       **COMPANY**: [Name]
+       **CORE ENGINE**: [One-sentence business model logic]
+       **THESIS**: [One-sentence research conclusion]
     
     2. EXECUTIVE SUMMARY
        - SKIMMABLE KEY FINDINGS: 3-4 bullet points.
@@ -59,32 +59,59 @@ class Synthesizer:
     3. BUSINESS MODEL MECHANICS
        - Qualitative narrative of revenue/margin logic.
        - Use *Assumptions* block (italicized) for any inferred logic.
-       - Add a "> **What This Means**" callout after this section.
+       - End this section with: **What This Means:** [interpretation paragraph]
     
     4. FINANCIAL EVIDENCE
-       - Tabular data support.
-       - MANDATORY TABLE FORMAT:
-         - Each row MUST be on a new line.
-         - The separator row (|---|) MUST follow the header row immediately.
-         - Do NOT combine multiple rows into a single string or line.
-         - Use clean, standard Markdown table syntax.
+       - Tabular data support with PROPER FORMATTING.
+       - CRITICAL TABLE FORMATTING RULES (MANDATORY):
+         * EVERY ROW MUST START ON A NEW LINE. Use actual line breaks, not pipes.
+         * Correct format:
+           | Metric | Value |
+           |:---|:---|
+           | Item 1 | Data 1 |
+           | Item 2 | Data 2 |
+           | Item 3 | Data 3 |
+         * WRONG format (NEVER DO THIS):
+           | Metric | Value | |:---|:---| | Item 1 | Data 1 | | Item 2 | Data 2 |
+         * Each data row MUST be on its own line with a line break before it.
+         * The separator row (|:---|:---|) MUST be on its own line immediately after header.
+         * Use currency shorthand: $130.5B instead of $130,497,000,000
+         * Format large numbers: use B for billions, M for millions, K for thousands
+       - Example of CORRECT table:
+         | Fiscal Year | Revenue | Net Income |
+         |:---|:---|:---|
+         | 2025 | $416.2B | $112.0B |
+         | 2024 | $391.0B | $93.7B |
+         | 2023 | $383.3B | $97.0B |
        - Use clean Markdown tables with a blank line before and after.
-       - Bold all table headers.
-       - Add a "> **What This Means**" callout after each major table.
+       - Bold all table headers: **Metric** instead of metric.
+       - After each table, add: **What This Means:** [interpretation]
        - Note: If data is missing for a metric, use "N/A" or "---".
     
     5. LIMITATIONS & DATA GAPS
-       - Explicit warning block for missing or low-confidence data.
-       - Format as: "### ⚠️ WARNING: [Issue Name]" followed by description.
+       - Format each limitation with a Level 3 header.
+       - Use: ### ⚠️ WARNING: [Issue Name]
+       - Follow with clear description of the constraint.
+       - DO NOT use colored text, blockquotes (>), or diff syntax blocks.
     
-    CONSTRAINTS:
+    FORMATTING CONSTRAINTS:
     - Neutral, institutional tone. No conversational filler.
-    - VISUAL SEPARATION: 
-      - Facts: Plain text.
-      - Interpretation: Use Markdown blockquotes (>).
-      - Assumptions: Use italics (*text*).
-      - Limitations: Use bold warning headers.
-    - Visual hierarchy: Use ## for sections, ### for subsections.
+    - DO NOT USE: Blockquotes (>), colored text, code blocks for styling, markdown syntax highlighting.
+    - DO USE: Bold text (**text**) for emphasis and callouts.
+    - Visual hierarchy: Use ## for major sections, ### for subsections and warnings.
+    - Interpretation blocks: Always use **What This Means:** on its own paragraph after tables/sections.
+    - NUMBERS: Always use shorthand (B/M/K) in tables. Format: $X.XB or XX% for percentages.
+    
+    TABLE OUTPUT RULES (CRITICAL - MOST IMPORTANT):
+    - NEVER write a table on a single line.
+    - ALWAYS use actual newline characters between table elements.
+    - If you are tempted to write: | Header | | --- | | Data |
+    - STOP. This is WRONG. Write it as:
+      | Header |
+      | --- |
+      | Data |
+    - Each pipe-delimited row must be on its own line. Use Python's implicit line joining or explicit newlines.
+    - Test: If your output has a pipe (|) character followed immediately by another pipe on the same line with data between them on a single line, you have failed. REFORMAT.
     
     Analysis:
     """)

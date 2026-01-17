@@ -101,6 +101,20 @@ td {
     word-wrap: break-word;
 }
 
+/* Right-align numeric columns for better readability */
+th:nth-child(3),
+th:nth-child(4),
+th:nth-child(5),
+th:nth-child(6),
+td:nth-child(3),
+td:nth-child(4),
+td:nth-child(5),
+td:nth-child(6) {
+    text-align: right;
+    font-family: 'Courier New', monospace;
+    font-weight: 500;
+}
+
 tr:nth-child(even) {
     background-color: #f8fafc;
 }
@@ -141,7 +155,70 @@ tr:nth-child(even) {
 .synthesis-content {
     color: #2d3748;
     font-size: 9.5pt;
-    line-height: 1.5;
+    line-height: 1.6;
+}
+
+/* --- Markdown Styling in Synthesis --- */
+.synthesis-content strong {
+    font-weight: bold;
+    color: #1a202c;
+}
+
+.synthesis-content em {
+    font-style: italic;
+    color: #4a5568;
+}
+
+.synthesis-content h2 {
+    font-size: 12pt;
+    font-weight: bold;
+    color: #2d3748;
+    margin-top: 14pt;
+    margin-bottom: 10pt;
+    border-bottom: 1.5pt solid #2d3748;
+    padding-bottom: 6pt;
+}
+
+.synthesis-content h3 {
+    font-size: 10pt;
+    font-weight: bold;
+    color: #1a202c;
+    margin-top: 12pt;
+    margin-bottom: 8pt;
+}
+
+/* Callout boxes - styled as simple bold sections with clear spacing */
+.synthesis-content p strong:first-child {
+    display: block;
+    margin-bottom: 6pt;
+    color: #1a4d8a;
+    font-size: 10pt;
+}
+
+/* Tables within synthesis content */
+.synthesis-content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10pt 0;
+    font-size: 8.5pt;
+}
+
+.synthesis-content table th,
+.synthesis-content table td {
+    border: 0.5pt solid #cbd5e0;
+    padding: 5pt 6pt;
+    text-align: right;
+}
+
+.synthesis-content table th {
+    background-color: #edf2f7;
+    font-weight: bold;
+    color: #2d3748;
+}
+
+.synthesis-content table td {
+    background-color: #ffffff;
+    font-weight: normal;
 }
 
 /* --- Utilities --- */
@@ -149,6 +226,13 @@ tr:nth-child(even) {
 .bold { font-weight: bold; }
 .monospace { font-family: monospace; }
 .v-spacer { height: 15pt; }
+
+/* Number formatting - align right for currency/metrics */
+.numeric {
+    text-align: right;
+    font-family: 'Courier New', monospace;
+    font-weight: bold;
+}
 
 /* Page Breaking Rules */
 .page-break { page-break-before: always; }

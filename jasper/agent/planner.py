@@ -9,7 +9,7 @@ from ..observability.logger import SessionLogger
 
 
 # FIX 7: Define available tools
-AVAILABLE_TOOLS = ["income_statement"]
+AVAILABLE_TOOLS = ["income_statement", "balance_sheet", "financial_statement"]
 
 
 PLANNER_PROMPT = """
@@ -33,13 +33,15 @@ Your job:
 - If intent is QUANTITATIVE: Break the query into explicit, ordered research tasks for data fetching.
 - If intent is MIXED: Create both qualitative synthesis tasks AND quantitative data-fetching tasks.
 
-For QUANTITATIVE tasks:
+For QUANTITATIVE tasks (forward-looking analysis, growth potential, future predictions):
+- For "growth potential" or "increments expected", fetch income statement to analyze historical trends
 - Each task must declare what data it requires
 - Use extracted entities (tickers, names) in task arguments
 - ONLY use tools from the available tools list
 - Do NOT assume data exists
 - Do NOT compute results
 - Do NOT answer the question
+- Even if answer requires domain expertise, fetch the supporting financial data first
 
 Output JSON ONLY in this format:
 {{
