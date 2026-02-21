@@ -455,8 +455,9 @@ def interactive_command():
                 for prev_q, prev_a in history[-3:]:
                     # Truncate prior answers to avoid flooding the prompt
                     snippet = (prev_a or "")[:300].replace("\n", " ")
+                    ellipsis = "..." if len(prev_a or "") > 300 else ""
                     context_lines.append(
-                        f"Prior Q: {prev_q}\nPrior A (summary): {snippet}..."
+                        f"Prior Q: {prev_q}\nPrior A (summary): {snippet}{ellipsis}"
                     )
                 context_prefix = (
                     "PRIOR SESSION CONTEXT (for follow-up awareness only):\n"

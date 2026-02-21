@@ -46,7 +46,11 @@ class JasperController:
             # Reflection phase — retry transient failures, degrade gracefully otherwise
             state.status = "Reflecting"
             self.logger.log("REFLECTION_STARTED", {})
-            await self.reflector.reflect(state, self.executor)
+            try:
+                await self.reflector.reflect(state, self.executor)
+            except Exception as _reflect_err:
+                self.logger.log("REFLECTION_FAILED", {"error": str(_reflect_err)})
+                # Continue to validation with whatever data was collected
 
             # Validation phase
             state.status = "Validating"

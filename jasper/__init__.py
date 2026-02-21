@@ -29,7 +29,7 @@ async def run_research(query: str) -> "Optional[FinalReport]":
 
     Returns:
         A :class:`~jasper.core.state.FinalReport` Pydantic model, or ``None``
-        if the pipeline failed (check ``state.error`` for details).
+        if the pipeline failed for this query.
     """
     import os
     from .core.controller import JasperController

@@ -61,32 +61,52 @@ class Reflector:
             "total_tasks": len(state.plan),
         })
 
+        attempted_ids: set = set()
         for task in failed_tasks:
             original_error = task.error or ""
-            if _is_retryable(original_error):
-                self.logger.log("REFLECTOR_RETRYING", {
-                    "task_id": task.id, "description": task.description,
-                    "error": original_error,
-                })
-                task.status = "pending"
-                task.error = None
-                await executor.execute_task(state, task)
-
-                log_event = (
-                    "REFLECTOR_RETRY_SUCCESS" if task.status == "completed"
-                    else "REFLECTOR_RETRY_FAILED"
-                )
-                self.logger.log(log_event, {
-                    "task_id": task.id, "error": task.error,
-                })
-            else:
+            if not _is_retryable(original_error):
                 self.logger.log("REFLECTOR_SKIPPING", {
                     "task_id": task.id, "reason": original_error,
                 })
+                continue
 
-        recovered = sum(1 for t in state.plan if t.status == "completed")
+            attempted_ids.add(task.id)
+            for attempt in range(1, self.max_retries + 1):
+                self.logger.log("REFLECTOR_RETRYING", {
+                    "task_id": task.id, "description": task.description,
+                    "attempt": attempt, "max_retries": self.max_retries,
+                    "error": task.error or original_error,
+                })
+                task.status = "pending"
+                task.error = None
+                try:
+                    await executor.execute_task(state, task)
+                except Exception as exc:
+                    task.status = "failed"
+                    task.error = str(exc)
+                    self.logger.log("REFLECTOR_RETRY_FAILED", {
+                        "task_id": task.id, "attempt": attempt, "error": str(exc),
+                    })
+                    continue
+
+                if task.status == "completed":
+                    self.logger.log("REFLECTOR_RETRY_SUCCESS", {
+                        "task_id": task.id, "attempt": attempt,
+                    })
+                    break
+                self.logger.log("REFLECTOR_RETRY_FAILED", {
+                    "task_id": task.id, "attempt": attempt, "error": task.error,
+                })
+
+        # Count only tasks that were actively attempted for recovery
+        recovered = sum(
+            1 for t in state.plan if t.id in attempted_ids and t.status == "completed"
+        )
+        still_failed = sum(
+            1 for t in state.plan if t.id in attempted_ids and t.status == "failed"
+        )
         self.logger.log("REFLECTOR_COMPLETED", {
             "recovered": recovered,
-            "still_failed": len(state.plan) - recovered,
+            "still_failed": still_failed,
         })
         return state

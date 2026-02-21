@@ -40,7 +40,8 @@ class validator:
             # Qualitative query — no data tasks, always valid
             is_valid = True
         elif completed_count == total_count:
-            is_valid = len(issues) == 0
+            # hard_failures (task.error entries) must also be clear for full success
+            is_valid = len(issues) == 0 and len(hard_failures) == 0
         elif completed_count / total_count >= 0.5:
             # Partial success: enough data to synthesise with caveats
             is_valid = True

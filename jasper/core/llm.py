@@ -1,4 +1,5 @@
 import os
+from typing import Dict
 from langchain_openai import ChatOpenAI
 from pydantic import SecretStr
 from .config import get_llm_api_key
@@ -32,13 +33,13 @@ def get_llm(temperature: float = 0) -> ChatOpenAI:
     )
 
 
-# ── Module-level singleton so `interactive` mode reuses the same connection pool ──
-_llm_singleton: "ChatOpenAI | None" = None
+# ── Per-temperature singletons — one connection pool per temperature per process ──
+_llm_singletons: "Dict[float, ChatOpenAI]" = {}
 
 
 def get_llm_singleton(temperature: float = 0) -> "ChatOpenAI":
-    """Return a cached LLM instance (created once per process)."""
-    global _llm_singleton
-    if _llm_singleton is None:
-        _llm_singleton = get_llm(temperature=temperature)
-    return _llm_singleton
+    """Return a cached LLM instance for the given temperature (one per temperature per process)."""
+    global _llm_singletons
+    if temperature not in _llm_singletons:
+        _llm_singletons[temperature] = get_llm(temperature=temperature)
+    return _llm_singletons[temperature]

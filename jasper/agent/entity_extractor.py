@@ -1,6 +1,7 @@
 from typing import List, Any, Literal
 from pydantic import BaseModel, ValidationError
 from langchain_core.prompts import ChatPromptTemplate
+import hashlib
 import json
 import re
 from ..observability.logger import SessionLogger
@@ -129,6 +130,22 @@ class EntityExtractor:
                 data = json.loads(json_text)
                 break
             except (json.JSONDecodeError, ValueError) as e:
+                # Parse errors are deterministic at temperature=0 — do not retry.
+                last_err = e
+                self.logger.log(
+                    "ENTITY_EXTRACTION_PARSE_FATAL",
+                    {
+                        "raw_hash": hashlib.sha256(raw.encode()).hexdigest(),
+                        "raw_len": len(raw),
+                        "raw_preview": raw[:200],
+                        "error": str(e),
+                    },
+                )
+                raise RuntimeError(
+                    "Failed to parse entity extractor output as JSON"
+                ) from e
+            except Exception as e:
+                # Transient network/API error — retry up to 3 times
                 last_err = e
                 self.logger.log(
                     "ENTITY_EXTRACTION_PARSE_ERROR",
@@ -138,10 +155,10 @@ class EntityExtractor:
         if data is None:
             self.logger.log(
                 "ENTITY_EXTRACTION_PARSE_FATAL",
-                {"raw": raw, "error": str(last_err)},
+                {"error": str(last_err)},
             )
             raise RuntimeError(
-                "Failed to parse entity extractor output as JSON after 3 attempts"
+                "Entity extraction failed after 3 attempts (transient API error)"
             ) from last_err
 
         # Extract entities

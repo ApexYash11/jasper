@@ -176,12 +176,18 @@ class Planner:
                 parsed = json.loads(json_text)
                 break
             except (json.JSONDecodeError, ValueError) as e:
+                # Parse errors are deterministic at temperature=0 — raise immediately.
+                last_err = e
+                self.logger.log("PLANNER_PARSE_FATAL", {"error": str(e)})
+                raise RuntimeError("Planner output is not valid JSON") from e
+            except Exception as e:
+                # Transient network/API error — retry
                 last_err = e
                 self.logger.log("PLANNER_PARSE_ERROR", {"attempt": attempt + 1, "error": str(e)})
 
         if parsed is None:
-            self.logger.log("PLANNER_PARSE_FATAL", {"raw": response, "error": str(last_err)})
-            raise RuntimeError("Planner output is not valid JSON after 3 attempts") from last_err
+            self.logger.log("PLANNER_PARSE_FATAL", {"error": str(last_err)})
+            raise RuntimeError("Planner failed after 3 attempts (transient API error)") from last_err
 
         if not isinstance(parsed, dict) or "tasks" not in parsed or not isinstance(parsed["tasks"], list):
             self.logger.log("PLANNER_SCHEMA_ERROR", {"parsed": parsed})

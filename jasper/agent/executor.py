@@ -32,7 +32,8 @@ class Executor:
         return True
 
     async def _execute_with_retries(
-        self, state: Jasperstate, task: Task, fetch_coro_factory
+        self, state: Jasperstate, task: Task, fetch_coro_factory,
+        skip_fiscal_validation: bool = False,
     ) -> None:
         """Run a fetch coroutine with retry logic, updating task state."""
         attempts = 0
@@ -44,7 +45,14 @@ class Executor:
                     raise FinancialDataError("Empty response from provider")
 
                 try:
-                    self._validate_financial_data(result)
+                    if skip_fiscal_validation:
+                        # Quote/key-metrics tools return a flat dict — only verify non-empty
+                        if isinstance(result, dict) and not result:
+                            raise ValueError("Empty quote dict")
+                        elif isinstance(result, list) and not result:
+                            raise ValueError("Empty quote list")
+                    else:
+                        self._validate_financial_data(result)
                 except ValueError as ve:
                     raise FinancialDataError(
                         f"Invalid financial data structure: {ve}"
@@ -113,13 +121,15 @@ class Executor:
             elif tool in _QUOTE_TOOLS:
                 await self._execute_with_retries(
                     state, task,
-                    lambda: self.financial_router.fetch_realtime_quote(ticker)
+                    lambda: self.financial_router.fetch_realtime_quote(ticker),
+                    skip_fiscal_validation=True,
                 )
 
             else:
+                _all_tools = sorted(_INCOME_TOOLS | _BALANCE_TOOLS | _CASH_FLOW_TOOLS | _QUOTE_TOOLS)
                 raise ValueError(
                     f"Unknown tool '{tool}' for task '{task.description}'. "
-                    f"Supported tools: income_statement, balance_sheet, cash_flow, realtime_quote."
+                    f"Valid tools: {', '.join(_all_tools)}."
                 )
 
         except Exception as e:

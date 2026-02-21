@@ -18,10 +18,13 @@ _cache: Dict[str, tuple] = {}  # key -> (timestamp, data)
 
 
 def _cache_get(key: str):
-    """Return cached value if still fresh, else None."""
+    """Return cached value if still fresh, else None (evicting stale entries)."""
     entry = _cache.get(key)
-    if entry and (time.monotonic() - entry[0]) < _CACHE_TTL:
+    if entry is None:
+        return None
+    if (time.monotonic() - entry[0]) < _CACHE_TTL:
         return entry[1]
+    del _cache[key]  # evict stale entry to prevent unbounded growth
     return None
 
 
@@ -41,10 +44,13 @@ class FinancialDataRouter:
         self, method_name: str, ticker: str, label: str
     ):
         """Generic fallback loop with in-memory caching: try each provider in order."""
+        # Real-time quotes must never be served from a stale cache
+        use_cache = method_name != "realtime_quote"
         cache_key = f"{method_name}:{ticker.upper()}"
-        cached = _cache_get(cache_key)
-        if cached is not None:
-            return cached
+        if use_cache:
+            cached = _cache_get(cache_key)
+            if cached is not None:
+                return cached
 
         errors = []
         for provider in self.providers:
@@ -53,7 +59,8 @@ class FinancialDataRouter:
                 continue
             try:
                 result = await method(ticker)
-                _cache_set(cache_key, result)
+                if use_cache:
+                    _cache_set(cache_key, result)
                 return result
             except Exception as e:
                 errors.append(f"{type(provider).__name__}: {e}")

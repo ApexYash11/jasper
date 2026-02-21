@@ -200,7 +200,7 @@ class YFinanceClient:
 
             def _get(key: str, fallback: str = "N/A") -> str:
                 val = info.get(key)
-                return str(val) if val is not None else fallback
+                return YFinanceClient._safe_str(val, fallback=fallback)
 
             # Return a single flat dict (not a list — validator handles this)
             return {
