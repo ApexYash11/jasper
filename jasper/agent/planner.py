@@ -9,7 +9,14 @@ from ..observability.logger import SessionLogger
 
 
 # FIX 7: Define available tools
-AVAILABLE_TOOLS = ["income_statement", "balance_sheet", "financial_statement"]
+AVAILABLE_TOOLS = [
+    "income_statement",
+    "balance_sheet",
+    "financial_statement",
+    "cash_flow",
+    "realtime_quote",
+    "key_metrics",
+]
 
 
 PLANNER_PROMPT = """
@@ -129,33 +136,52 @@ class Planner:
         report_mode = self._infer_mode(query, intent.category)
         self.logger.log("MODE_INFERRED", {"mode": report_mode.value})
         
-        # FIX 8: Fail fast if no entities extracted
+        # FIX #14: Allow qualitative queries with no entities — synthesize from domain knowledge
         if not entities:
+            if intent.category == "qualitative":
+                self.logger.log("PLANNER_QUALITATIVE_NO_ENTITIES", {"query": query})
+                return [], report_mode
             self.logger.log("PLANNER_NO_ENTITIES", {"query": query})
-            raise ValueError("Could not extract financial entities from query. Please provide company names or tickers (e.g., 'Apple' or 'AAPL')")
+            raise ValueError(
+                "Could not identify a company or ticker in your query.\n"
+                "  \u2022 For company research: include the name or ticker "
+                "(e.g. \"Apple revenue\" or \"AAPL earnings\")\n"
+                "  \u2022 For general concepts: rephrase as qualitative "
+                "(e.g. \"Explain yield curve inversion\")\n"
+                "  \u2022 Indian stocks: use NSE suffix (e.g. RELIANCE.NS, INFY.NS)"
+            )
         
         entities_str = "\n".join([f"- {e.name} ({e.type}): {e.ticker or 'N/A'}" for e in entities])
         
         # FIX 7: Include available tools and intent in prompt
         tools_str = ", ".join(AVAILABLE_TOOLS)
         prompt = ChatPromptTemplate.from_template(PLANNER_PROMPT)
-        generate_result = await self.llm.agenerate([prompt.format_messages(
-            query=query, 
-            entities=entities_str, 
-            available_tools=tools_str,
-            intent=intent.category,
-            report_mode=report_mode.value
-        )])
-        response = generate_result.generations[0][0].text
 
-        # Extract JSON from markdown or plain text
-        json_text = self._extract_json(response)
+        # Use ainvoke with up to 3 retries for JSON compliance (#13)
+        response = ""
+        parsed: dict | None = None
+        last_err: Exception | None = None
+        chain = prompt | self.llm
+        for attempt in range(3):
+            try:
+                response_msg = await chain.ainvoke({
+                    "query": query,
+                    "entities": entities_str,
+                    "available_tools": tools_str,
+                    "intent": intent.category,
+                    "report_mode": report_mode.value,
+                })
+                response = response_msg.content
+                json_text = self._extract_json(response)
+                parsed = json.loads(json_text)
+                break
+            except (json.JSONDecodeError, ValueError) as e:
+                last_err = e
+                self.logger.log("PLANNER_PARSE_ERROR", {"attempt": attempt + 1, "error": str(e)})
 
-        try:
-            parsed = json.loads(json_text)
-        except Exception as e:
-            self.logger.log("PLANNER_PARSE_ERROR", {"raw": response, "json_text": json_text, "error": str(e)})
-            raise RuntimeError("Planner output is not valid JSON") from e
+        if parsed is None:
+            self.logger.log("PLANNER_PARSE_FATAL", {"raw": response, "error": str(last_err)})
+            raise RuntimeError("Planner output is not valid JSON after 3 attempts") from last_err
 
         if not isinstance(parsed, dict) or "tasks" not in parsed or not isinstance(parsed["tasks"], list):
             self.logger.log("PLANNER_SCHEMA_ERROR", {"parsed": parsed})

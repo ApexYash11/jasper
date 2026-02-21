@@ -57,3 +57,16 @@ class AlphaVantageClient:
                 f"Alpha Vantage malformed balance_sheet response for {ticker}"
             )
         return data["annualReports"]
+
+    async def cash_flow(self, ticker: str) -> List[Dict]:
+        """Fetch annual cash flow statement from Alpha Vantage."""
+        data = await self._fetch({
+            "function": "CASH_FLOW",
+            "symbol": ticker,
+            "apikey": self.api_key,
+        })
+        if "annualReports" not in data:
+            raise DataProviderError(
+                f"Alpha Vantage malformed cash_flow response for {ticker}"
+            )
+        return data["annualReports"]

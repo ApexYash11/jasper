@@ -2,6 +2,7 @@ from ..agent.planner import Planner
 from ..agent.executor import Executor
 from ..agent.validator import validator
 from ..agent.synthesizer import Synthesizer
+from ..agent.reflector import Reflector
 from .state import Jasperstate, FinalReport, TaskExecutionDetail, EvidenceItem, InferenceLink
 from ..observability.logger import SessionLogger
 
@@ -9,13 +10,21 @@ from ..observability.logger import SessionLogger
 # --- Jasper Controller ---
 # Orchestrates the flow between Planner, Executor, Validator, and Synthesizer
 class JasperController:
-    def __init__(self, planner: Planner, executor: Executor, validator: validator, synthesizer: Synthesizer, logger: SessionLogger | None = None):
+    def __init__(
+        self,
+        planner: Planner,
+        executor: Executor,
+        validator: validator,
+        synthesizer: Synthesizer,
+        logger: SessionLogger | None = None,
+        reflector: Reflector | None = None,
+    ):
         self.planner = planner
         self.executor = executor
         self.validator = validator
         self.synthesizer = synthesizer
-        # Use provided logger to keep session_id consistent across components
         self.logger = logger or SessionLogger()
+        self.reflector = reflector or Reflector(logger=self.logger)
 
     async def run(self, query: str) -> Jasperstate:
         """Step through the entire workflow: plan → execute → validate → synthesize."""
@@ -33,6 +42,11 @@ class JasperController:
                 self.logger.log("TASK_STARTED", {"task_id": task.id, "description": task.description})
                 await self.executor.execute_task(state, task)
                 self.logger.log("TASK_COMPLETED", {"task_id": task.id, "status": task.status})
+
+            # Reflection phase — retry transient failures, degrade gracefully otherwise
+            state.status = "Reflecting"
+            self.logger.log("REFLECTION_STARTED", {})
+            await self.reflector.reflect(state, self.executor)
 
             # Validation phase
             state.status = "Validating"

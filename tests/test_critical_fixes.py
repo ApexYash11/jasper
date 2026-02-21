@@ -517,3 +517,240 @@ class TestPDFTemplate:
         css = css_path.read_text(encoding="utf-8")
         assert ".status-warning" in css, \
             "status-warning CSS class must be defined for partial data retrieval display"
+
+
+# ─────────────────────────────────────────────────────────
+# 11. Reflector — retry/recovery loop (#10)
+# ─────────────────────────────────────────────────────────
+class TestReflector:
+    def _make_state(self):
+        from jasper.core.state import Jasperstate
+        s = Jasperstate(query="test")
+        return s
+
+    def _make_task(self, status: str, error: str | None = None):
+        from jasper.core.state import Task
+        from typing import cast, Literal
+        import uuid
+        return Task(
+            id=str(uuid.uuid4()),
+            description="test task",
+            tool_name="income_statement",
+            tool_args={"ticker": "AAPL"},
+            status=cast(Literal["pending", "in_progress", "completed", "failed"], status),
+            error=error,
+        )
+
+    def test_reflector_class_exists(self):
+        from jasper.agent.reflector import Reflector
+        r = Reflector()
+        assert r is not None
+
+    def test_reflector_retries_transient_error(self):
+        """Transient errors (timeout) should be retried."""
+        from jasper.agent.reflector import _is_retryable
+        assert _is_retryable("Connection timeout") is True
+        assert _is_retryable("503 service unavailable") is True
+        assert _is_retryable("429 too many requests") is True
+
+    def test_reflector_skips_permanent_error(self):
+        """Invalid ticker / no data = non-retryable."""
+        from jasper.agent.reflector import _is_retryable
+        assert _is_retryable("No income statement data for FAKEXYZ") is False
+        assert _is_retryable("Empty balance sheet") is False
+
+    @pytest.mark.asyncio
+    async def test_reflector_noop_when_no_failures(self):
+        """Reflector returns state unchanged when all tasks passed."""
+        from jasper.agent.reflector import Reflector
+        state = self._make_state()
+        task = self._make_task("completed")
+        state.plan = [task]
+        mock_executor = MagicMock()
+        r = Reflector()
+        out = await r.reflect(state, mock_executor)
+        mock_executor.execute_task.assert_not_called()
+        assert out is state
+
+
+# ─────────────────────────────────────────────────────────
+# 12. Validator partial-success path (#21)
+# ─────────────────────────────────────────────────────────
+class TestValidatorPartialSuccess:
+    def _make_state_with_tasks(self, statuses: list[str]):
+        from jasper.core.state import Jasperstate, Task
+        import uuid
+        state = Jasperstate(query="test")
+        from typing import cast, Literal
+        for s in statuses:
+            t = Task(id=str(uuid.uuid4()), description="fetch data", tool_name="income_statement", tool_args={"ticker": "AAPL"}, status=cast(Literal["pending", "in_progress", "completed", "failed"], s))
+            if s == "completed":
+                state.task_results[t.id] = [{"fiscalDateEnding": "2024-09-30", "totalRevenue": "100"}]
+            state.plan.append(t)
+        return state
+
+    def test_all_completed_is_valid(self):
+        from jasper.agent.validator import validator
+        state = self._make_state_with_tasks(["completed", "completed"])
+        v = validator()
+        result = v.validate(state)
+        assert result.is_valid is True
+
+    def test_half_completed_is_valid_partial(self):
+        """If 1/2 tasks completed (50%), validation should still pass."""
+        from jasper.agent.validator import validator
+        state = self._make_state_with_tasks(["completed", "failed"])
+        state.plan[1].error = "No data for ticker"
+        v = validator()
+        result = v.validate(state)
+        assert result.is_valid is True
+        assert result.confidence < 1.0, "Partial success should have reduced confidence"
+
+    def test_zero_completed_fails(self):
+        """If 0% completed, validation must fail."""
+        from jasper.agent.validator import validator
+        state = self._make_state_with_tasks(["failed", "failed"])
+        v = validator()
+        result = v.validate(state)
+        assert result.is_valid is False
+
+
+# ─────────────────────────────────────────────────────────
+# 13. New executor tool dispatches (#20)
+# ─────────────────────────────────────────────────────────
+class TestNewExecutorDispatches:
+    def _make_executor(self, mock_router):
+        from jasper.agent.executor import Executor
+        return Executor(financial_router=mock_router)
+
+    def _make_state(self):
+        from jasper.core.state import Jasperstate
+        return Jasperstate(query="test")
+
+    def _make_task(self, tool_name: str):
+        from jasper.core.state import Task
+        import uuid
+        return Task(id=str(uuid.uuid4()), description=f"run {tool_name}", tool_name=tool_name, tool_args={"ticker": "AAPL"})
+
+    @pytest.mark.asyncio
+    async def test_cash_flow_dispatched(self):
+        mock_router = MagicMock()
+        mock_router.fetch_cash_flow = AsyncMock(return_value=[
+            {"fiscalDateEnding": "2024-09-30", "operatingCashflow": "100"}
+        ])
+        exec_ = self._make_executor(mock_router)
+        state = self._make_state()
+        task = self._make_task("cash_flow")
+        state.plan.append(task)
+        await exec_.execute_task(state, task)
+        mock_router.fetch_cash_flow.assert_called_once_with("AAPL")
+        assert task.status == "completed"
+
+    @pytest.mark.asyncio
+    async def test_realtime_quote_dispatched(self):
+        mock_router = MagicMock()
+        mock_router.fetch_realtime_quote = AsyncMock(return_value={
+            "fiscalDateEnding": "current", "ticker": "AAPL", "currentPrice": "195.0"
+        })
+        exec_ = self._make_executor(mock_router)
+        state = self._make_state()
+        task = self._make_task("realtime_quote")
+        state.plan.append(task)
+        await exec_.execute_task(state, task)
+        mock_router.fetch_realtime_quote.assert_called_once_with("AAPL")
+        assert task.status == "completed"
+
+
+# ─────────────────────────────────────────────────────────
+# 14. Synthesizer context truncation (#22)
+# ─────────────────────────────────────────────────────────
+class TestSynthesizerContextTruncation:
+    def test_short_context_unchanged(self):
+        from jasper.agent.synthesizer import Synthesizer
+        s = Synthesizer(llm=MagicMock())
+        data = "Task: test\nData: small\n\n"
+        assert s._truncate_context(data, max_chars=1000) == data
+
+    def test_long_context_truncated(self):
+        from jasper.agent.synthesizer import Synthesizer
+        s = Synthesizer(llm=MagicMock())
+        data = "A" * 20_000
+        result = s._truncate_context(data, max_chars=12_000)
+        assert len(result) <= 13_000  # room for the truncation note
+        assert "truncated" in result
+
+    def test_truncation_note_appended(self):
+        from jasper.agent.synthesizer import Synthesizer
+        s = Synthesizer(llm=MagicMock())
+        data = "X\n\n" + "Y" * 15_000
+        result = s._truncate_context(data, max_chars=100)
+        assert "truncated" in result.lower()
+
+
+# ─────────────────────────────────────────────────────────
+# 15. Public Python API (#23)
+# ─────────────────────────────────────────────────────────
+class TestPublicAPI:
+    def test_run_research_importable(self):
+        import jasper
+        assert hasattr(jasper, "run_research"), "run_research must be exported from jasper package"
+
+    def test_run_research_is_coroutine(self):
+        import asyncio
+        from jasper import run_research
+        coro = run_research("test query")
+        assert asyncio.iscoroutine(coro)
+        coro.close()  # clean up without running
+
+    def test_final_report_importable(self):
+        from jasper import FinalReport
+        assert FinalReport is not None
+
+
+# ─────────────────────────────────────────────────────────
+# 16. In-memory caching in FinancialDataRouter (#21)
+# ─────────────────────────────────────────────────────────
+class TestFinancialRouterCaching:
+    def setup_method(self):
+        # Clear cache before each test
+        from jasper.tools import financials
+        financials._cache.clear()
+
+    @pytest.mark.asyncio
+    async def test_second_call_hits_cache(self):
+        from jasper.tools.financials import FinancialDataRouter
+        call_count = 0
+
+        async def mock_income(ticker):
+            nonlocal call_count
+            call_count += 1
+            return [{"fiscalDateEnding": "2024-09-30", "totalRevenue": "100"}]
+
+        mock_provider = MagicMock()
+        mock_provider.income_statement = mock_income
+        router = FinancialDataRouter(providers=[mock_provider])
+
+        await router.fetch_income_statement("AAPL")
+        await router.fetch_income_statement("AAPL")  # should hit cache
+
+        assert call_count == 1, "Second call should have been served from cache"
+
+    @pytest.mark.asyncio
+    async def test_different_tickers_not_shared(self):
+        from jasper.tools.financials import FinancialDataRouter
+        call_count = 0
+
+        async def mock_income(ticker):
+            nonlocal call_count
+            call_count += 1
+            return [{"fiscalDateEnding": "2024-09-30", "totalRevenue": str(call_count)}]
+
+        mock_provider = MagicMock()
+        mock_provider.income_statement = mock_income
+        router = FinancialDataRouter(providers=[mock_provider])
+
+        r1 = await router.fetch_income_statement("AAPL")
+        r2 = await router.fetch_income_statement("MSFT")
+
+        assert call_count == 2, "Different tickers must each trigger a real fetch"
+        assert r1 != r2

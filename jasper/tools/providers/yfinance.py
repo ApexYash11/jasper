@@ -132,3 +132,104 @@ class YFinanceClient:
             if isinstance(e, DataProviderError):
                 raise
             raise DataProviderError(f"YFinance balance_sheet failed for {ticker}: {str(e)}")
+
+    async def cash_flow(self, ticker: str) -> List[Dict]:
+        """Fetch quarterly cash flow statement from yfinance (non-blocking)."""
+        try:
+            loop = asyncio.get_event_loop()
+            stock = await loop.run_in_executor(None, yf.Ticker, ticker)
+            cf = await loop.run_in_executor(
+                None,
+                lambda: getattr(stock, "quarterly_cashflow",
+                                getattr(stock, "cashflow", None))
+            )
+
+            if cf is None or cf.empty:
+                raise DataProviderError(f"No cash flow data for {ticker}")
+
+            result = []
+            for date_key, row in cf.items():
+                date_str = str(date_key).split()[0]
+                result.append({
+                    "fiscalDateEnding": date_str,
+                    "operatingCashflow": self._row_get(
+                        row,
+                        "Cash Flow From Continuing Operating Activities",
+                        "Operating Cash Flow",
+                        "Total Cash From Operating Activities",
+                    ),
+                    "capitalExpenditures": self._row_get(
+                        row,
+                        "Capital Expenditure",
+                        "Capital Expenditures",
+                        "Purchases Of Property Plant And Equipment",
+                    ),
+                    "freeCashFlow": self._row_get(
+                        row, "Free Cash Flow"
+                    ),
+                    "netInvestingActivities": self._row_get(
+                        row,
+                        "Net Cash Used For Investing Activities",
+                        "Total Cashflows From Investing Activities",
+                    ),
+                    "netFinancingActivities": self._row_get(
+                        row,
+                        "Net Cash Used Provided By Financing Activities",
+                        "Total Cash From Financing Activities",
+                    ),
+                })
+
+            if not result:
+                raise DataProviderError(f"Empty cash flow for {ticker}")
+            return result
+
+        except Exception as e:
+            if isinstance(e, DataProviderError):
+                raise
+            raise DataProviderError(f"YFinance cash_flow failed for {ticker}: {str(e)}")
+
+    async def realtime_quote(self, ticker: str) -> Dict:
+        """Fetch real-time quote and key valuation metrics from yfinance (non-blocking)."""
+        try:
+            loop = asyncio.get_event_loop()
+            stock = await loop.run_in_executor(None, yf.Ticker, ticker)
+            info = await loop.run_in_executor(None, lambda: stock.info)
+
+            if not info or not isinstance(info, dict):
+                raise DataProviderError(f"No quote/info data available for {ticker}")
+
+            def _get(key: str, fallback: str = "N/A") -> str:
+                val = info.get(key)
+                return str(val) if val is not None else fallback
+
+            # Return a single flat dict (not a list — validator handles this)
+            return {
+                "fiscalDateEnding": "current",
+                "ticker": ticker,
+                "name": _get("longName"),
+                "sector": _get("sector"),
+                "currentPrice": _get("currentPrice"),
+                "previousClose": _get("previousClose"),
+                "marketCap": _get("marketCap"),
+                "peRatioTTM": _get("trailingPE"),
+                "forwardPE": _get("forwardPE"),
+                "priceToBook": _get("priceToBook"),
+                "evToEbitda": _get("enterpriseToEbitda"),
+                "dividendYield": _get("dividendYield"),
+                "week52High": _get("fiftyTwoWeekHigh"),
+                "week52Low": _get("fiftyTwoWeekLow"),
+                "volume": _get("volume"),
+                "beta": _get("beta"),
+                "epsTTM": _get("trailingEps"),
+                "returnOnEquity": _get("returnOnEquity"),
+                "returnOnAssets": _get("returnOnAssets"),
+                "grossMargins": _get("grossMargins"),
+                "operatingMargins": _get("operatingMargins"),
+                "revenueGrowth": _get("revenueGrowth"),
+                "earningsGrowth": _get("earningsGrowth"),
+            }
+
+        except Exception as e:
+            if isinstance(e, DataProviderError):
+                raise
+            raise DataProviderError(f"YFinance realtime_quote failed for {ticker}: {str(e)}")

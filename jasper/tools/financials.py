@@ -1,9 +1,33 @@
-from typing import Any, List
+from typing import Any, List, Dict
+import time
 from .exceptions import DataProviderError
 
 
 class FinancialDataError(Exception):
     """Custom exception for financial data retrieval errors."""
+
+
+# ---------------------------------------------------------------------------
+# In-memory TTL cache — avoids redundant API calls within/across sessions
+# Default TTL: 15 minutes (configurable via env var JASPER_CACHE_TTL_SECS)
+# ---------------------------------------------------------------------------
+import os as _os
+_CACHE_TTL = int(_os.getenv("JASPER_CACHE_TTL_SECS", "900"))  # 15 min default
+
+_cache: Dict[str, tuple] = {}  # key -> (timestamp, data)
+
+
+def _cache_get(key: str):
+    """Return cached value if still fresh, else None."""
+    entry = _cache.get(key)
+    if entry and (time.monotonic() - entry[0]) < _CACHE_TTL:
+        return entry[1]
+    return None
+
+
+def _cache_set(key: str, data) -> None:
+    """Store data in the in-memory cache."""
+    _cache[key] = (time.monotonic(), data)
 
 
 # --- Financial Data Router ---
@@ -16,14 +40,21 @@ class FinancialDataRouter:
     async def _fetch_with_fallback(
         self, method_name: str, ticker: str, label: str
     ):
-        """Generic fallback loop: try each provider's method in order."""
+        """Generic fallback loop with in-memory caching: try each provider in order."""
+        cache_key = f"{method_name}:{ticker.upper()}"
+        cached = _cache_get(cache_key)
+        if cached is not None:
+            return cached
+
         errors = []
         for provider in self.providers:
             method = getattr(provider, method_name, None)
             if method is None:
                 continue
             try:
-                return await method(ticker)
+                result = await method(ticker)
+                _cache_set(cache_key, result)
+                return result
             except Exception as e:
                 errors.append(f"{type(provider).__name__}: {e}")
 
@@ -41,4 +72,14 @@ class FinancialDataRouter:
     async def fetch_balance_sheet(self, ticker: str):
         return await self._fetch_with_fallback(
             "balance_sheet", ticker, "balance sheet"
+        )
+
+    async def fetch_cash_flow(self, ticker: str):
+        return await self._fetch_with_fallback(
+            "cash_flow", ticker, "cash flow statement"
+        )
+
+    async def fetch_realtime_quote(self, ticker: str):
+        return await self._fetch_with_fallback(
+            "realtime_quote", ticker, "real-time quote"
         )

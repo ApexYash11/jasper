@@ -5,6 +5,8 @@ from ..observability.logger import SessionLogger
 # Tool name aliases — all normalised lower-case keys
 _INCOME_TOOLS = {"income_statement", "financial_statement"}
 _BALANCE_TOOLS = {"balance_sheet"}
+_CASH_FLOW_TOOLS = {"cash_flow"}
+_QUOTE_TOOLS = {"realtime_quote", "key_metrics"}
 
 
 # --- Executor ---
@@ -102,10 +104,22 @@ class Executor:
                     lambda: self.financial_router.fetch_balance_sheet(ticker)
                 )
 
+            elif tool in _CASH_FLOW_TOOLS:
+                await self._execute_with_retries(
+                    state, task,
+                    lambda: self.financial_router.fetch_cash_flow(ticker)
+                )
+
+            elif tool in _QUOTE_TOOLS:
+                await self._execute_with_retries(
+                    state, task,
+                    lambda: self.financial_router.fetch_realtime_quote(ticker)
+                )
+
             else:
                 raise ValueError(
                     f"Unknown tool '{tool}' for task '{task.description}'. "
-                    f"Supported tools: income_statement, balance_sheet, financial_statement."
+                    f"Supported tools: income_statement, balance_sheet, cash_flow, realtime_quote."
                 )
 
         except Exception as e:

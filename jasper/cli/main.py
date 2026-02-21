@@ -2,6 +2,7 @@ import typer
 import asyncio
 import os
 import json
+from datetime import datetime
 from typing import Optional
 from rich.console import Console
 from rich.live import Live
@@ -17,7 +18,7 @@ from ..agent.synthesizer import Synthesizer
 from ..tools.financials import FinancialDataRouter
 from ..tools.providers.alpha_vantage import AlphaVantageClient
 from ..tools.providers.yfinance import YFinanceClient
-from ..core.llm import get_llm
+from ..core.llm import get_llm_singleton
 from ..observability.logger import SessionLogger
 from ..core.state import Jasperstate, FinalReport
 from ..export.pdf import export_report_to_pdf, export_report_html
@@ -138,8 +139,8 @@ async def execute_research(query: str, console: Console) -> Jasperstate:
         # Initialize Logger with Live reference
         logger = RichLogger(live)
         
-        # Initialize Components
-        llm = get_llm(temperature=0)
+        # Reuse module-level LLM singleton — avoids rebuilding the connection pool
+        llm = get_llm_singleton(temperature=0)
         av_client = AlphaVantageClient(api_key=os.getenv("ALPHA_VANTAGE_API_KEY", "demo"))
         yfinance_client = YFinanceClient()
         router = FinancialDataRouter(providers=[av_client, yfinance_client])
@@ -417,7 +418,11 @@ def interactive_command():
                     continue
                 
                 parts = user_input.split()
-                out_file = parts[1] if len(parts) > 1 else "report.pdf"
+                if len(parts) > 1:
+                    out_file = parts[1]
+                else:
+                    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    out_file = f"jasper_report_{ts}.pdf"
                 try:
                     pdf_path = export_report_to_pdf(_last_report, out_file, validate=True)
                     console.print(f"[bold green]✅ PDF exported:[/bold green] {pdf_path}")
@@ -431,7 +436,11 @@ def interactive_command():
                     continue
                 
                 parts = user_input.split()
-                out_file = parts[1] if len(parts) > 1 else "report.html"
+                if len(parts) > 1:
+                    out_file = parts[1]
+                else:
+                    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    out_file = f"jasper_report_{ts}.html"
                 try:
                     html_path = export_report_html(_last_report, out_file)
                     console.print(f"[bold green]✅ HTML exported:[/bold green] {html_path}")
@@ -439,10 +448,26 @@ def interactive_command():
                     console.print(f"[red]Error exporting HTML: {e}[/red]")
                 continue
 
-            # Execute Research
+            # Execute Research — prepend recent history for session memory (#19)
+            effective_query = user_input
+            if history:
+                context_lines = []
+                for prev_q, prev_a in history[-3:]:
+                    # Truncate prior answers to avoid flooding the prompt
+                    snippet = (prev_a or "")[:300].replace("\n", " ")
+                    context_lines.append(
+                        f"Prior Q: {prev_q}\nPrior A (summary): {snippet}..."
+                    )
+                context_prefix = (
+                    "PRIOR SESSION CONTEXT (for follow-up awareness only):\n"
+                    + "\n".join(context_lines)
+                    + "\n\nCURRENT QUERY: "
+                )
+                effective_query = context_prefix + user_input
+
             console.print(f"\n[{THEME['Accent']}]Researching:[/{THEME['Accent']}] {user_input}\n")
             
-            state = asyncio.run(execute_research(user_input, console))
+            state = asyncio.run(execute_research(effective_query, console))
             
             # Update cache
             if state.report:
@@ -463,7 +488,7 @@ def interactive_command():
 # COMMAND 5: export  —  Export research report to PDF
 # =====================================================================
 @app.command(name="export")
-def export_command(format: str = "pdf", out: str = "report.pdf"):
+def export_command(format: str = "pdf", out: str = ""):
     """Export the last research report to PDF or HTML.
     
     Examples:
@@ -473,7 +498,7 @@ def export_command(format: str = "pdf", out: str = "report.pdf"):
     
     Arguments:
         format (str): Export format: pdf or html (default: pdf)
-        out (str): Output file path (default: report.pdf)
+        out (str): Output file path (default: timestamped filename)
     """
     global _last_report
 
@@ -488,6 +513,11 @@ def export_command(format: str = "pdf", out: str = "report.pdf"):
         raise typer.Exit(code=1)
     
     format = format.lower().strip()
+
+    # Auto-generate a timestamped filename if none provided
+    if not out:
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        out = f"jasper_report_{ts}.{format}"
     
     # Export based on format
     try:

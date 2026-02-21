@@ -116,17 +116,33 @@ class EntityExtractor:
         """
         self.logger.log("ENTITY_EXTRACTION_STARTED", {"query": query})
         prompt = ChatPromptTemplate.from_template(NER_PROMPT)
-        generate_result = await self.llm.agenerate([prompt.format_messages(query=query)])
-        raw = generate_result.generations[0][0].text
+        chain = prompt | self.llm
 
-        # Extract JSON from markdown or plain text
-        json_text = self._extract_json(raw)
+        data: dict | None = None
+        last_err: Exception | None = None
+        raw = ""
+        for attempt in range(3):
+            try:
+                response = await chain.ainvoke({"query": query})
+                raw = response.content
+                json_text = self._extract_json(raw)
+                data = json.loads(json_text)
+                break
+            except (json.JSONDecodeError, ValueError) as e:
+                last_err = e
+                self.logger.log(
+                    "ENTITY_EXTRACTION_PARSE_ERROR",
+                    {"attempt": attempt + 1, "error": str(e)},
+                )
 
-        try:
-            data = json.loads(json_text)
-        except Exception as e:
-            self.logger.log("ENTITY_EXTRACTION_PARSE_ERROR", {"raw": raw, "json_text": json_text, "error": str(e)})
-            raise RuntimeError("Failed to parse entity extractor output as JSON") from e
+        if data is None:
+            self.logger.log(
+                "ENTITY_EXTRACTION_PARSE_FATAL",
+                {"raw": raw, "error": str(last_err)},
+            )
+            raise RuntimeError(
+                "Failed to parse entity extractor output as JSON after 3 attempts"
+            ) from last_err
 
         # Extract entities
         entities = []
