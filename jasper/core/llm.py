@@ -15,7 +15,7 @@ def get_llm(temperature: float = 0) -> ChatOpenAI:
         Configured ChatOpenAI instance pointing to OpenRouter
     """
     api_key = get_llm_api_key()  # Raises ValueError if not set
-    model = os.getenv("OPENROUTER_MODEL", "xiaomi/mimo-v2-flash:free")
+    model = os.getenv("OPENROUTER_MODEL", "arcee-ai/trinity-large-preview:free")
     
     return ChatOpenAI(
         model=model,

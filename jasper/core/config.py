@@ -19,9 +19,17 @@ def get_financial_api_key() -> str:
     if key == "demo":
         import warnings
         warnings.warn(
-            "Using Alpha Vantage demo API key (rate-limited and may return dummy data). "
-            "For production, set ALPHA_VANTAGE_API_KEY in .env or as env var.",
-            UserWarning
+            "\n"
+            "╔══ ALPHA VANTAGE DEMO KEY ACTIVE ══════════════════════════════╗\n"
+            "║  WARNING: No ALPHA_VANTAGE_API_KEY set in .env               ║\n"
+            "║  The 'demo' key ALWAYS returns IBM (ticker: IBM) data,        ║\n"
+            "║  regardless of the ticker you query.                          ║\n"
+            "║  Data shown will NOT correspond to your queried company.      ║\n"
+            "║  → Get a free key at https://www.alphavantage.co/support/     ║\n"
+            "║    and add  ALPHA_VANTAGE_API_KEY=<key>  to your .env         ║\n"
+            "╚═══════════════════════════════════════════════════════════════╝",
+            UserWarning,
+            stacklevel=2,
         )
     return key
 

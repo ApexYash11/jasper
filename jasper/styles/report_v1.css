@@ -74,6 +74,7 @@ body {
 
 .status-passed { background-color: #c6f6d5; color: #22543d; border: 1pt solid #2f855a; }
 .status-failed { background-color: #fed7d7; color: #822727; border: 1pt solid #c53030; }
+.status-warning { background-color: #fefcbf; color: #744210; border: 1pt solid #d69e2e; }
 
 /* --- Tables (Evidence & Inference) --- */
 table {

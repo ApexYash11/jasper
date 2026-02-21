@@ -100,7 +100,7 @@ class Jasperstate(BaseModel):
     plan: List[Task] = Field(default_factory=list, description="List of tasks in the plan")
     current_task_index: int = Field(default=0, description="Index of the current task being executed")
 
-    task_results: Dict[str, Dict] = Field(default_factory=dict, description="Results of executed tasks, keyed by task ID")
+    task_results: Dict[str, Any] = Field(default_factory=dict, description="Results of executed tasks, keyed by task ID")
 
     validation: Optional[validationresult] = Field(default=None, description="Validation result of the current state")
 

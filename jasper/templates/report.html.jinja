@@ -23,8 +23,18 @@
             </div>
             <div class="dashboard-column">
                 <div class="meta-row">
-                    <span class="meta-label">DATA RETRIEVAL:</span> 
+                    <span class="meta-label">DATA RETRIEVAL:</span>
+                    {% set completed_count = report.audit_trail | selectattr('status', 'equalto', 'completed') | list | length %}
+                    {% set total_count = report.audit_trail | length %}
+                    {% if total_count == 0 %}
+                    <span class="ledger-entry status-failed">NO DATA</span>
+                    {% elif completed_count == total_count %}
                     <span class="ledger-entry status-passed">SUCCESS</span>
+                    {% elif completed_count > 0 %}
+                    <span class="ledger-entry status-warning">PARTIAL ({{ completed_count }}/{{ total_count }})</span>
+                    {% else %}
+                    <span class="ledger-entry status-failed">FAILED</span>
+                    {% endif %}
                 </div>
                 <div class="meta-row">
                     <span class="meta-label">VALIDATION:</span> 
@@ -66,7 +76,7 @@
                     <td class="bold">{{ item.value }}</td>
                     <td>{{ item.period }}</td>
                     <td>{{ item.source }}</td>
-                    <td><span class="ledger-entry status-passed">{{ item.status }}</span></td>
+                    <td><span class="ledger-entry {% if item.status == 'VERIFIED' %}status-passed{% else %}status-failed{% endif %}">{{ item.status }}</span></td>
                 </tr>
                 {% else %}
                 <tr><td colspan="6" style="text-align: center;">No structured evidence log available.</td></tr>
@@ -166,7 +176,7 @@
                     <td class="monospace">{{ task.task_id }}</td>
                     <td>{{ task.description }}</td>
                     <td>{{ task.tool }}</td>
-                    <td><span class="ledger-entry status-passed">{{ task.status }}</span></td>
+                    <td><span class="ledger-entry {% if task.status == 'completed' %}status-passed{% else %}status-failed{% endif %}">{{ task.status | upper }}</span></td>
                 </tr>
                 {% else %}
                 <tr><td colspan="4" style="text-align: center;">No execution audit trail available.</td></tr>

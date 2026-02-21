@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-CLI Integration Tests for Jasper v1.0.7
+CLI Integration Tests for Jasper v1.0.9
 Tests the reorganized package structure with new scripts/, config/, and docs/ layout.
 """
 
@@ -13,8 +13,8 @@ def test_package_installation():
     try:
         import jasper
         assert hasattr(jasper, '__version__')
-        assert jasper.__version__ == "1.0.7"
-        print("   ✅ Package installed: jasper v1.0.7")
+        assert jasper.__version__ == "1.0.9"
+        print("   ✅ Package installed: jasper v1.0.9")
         return True
     except Exception as e:
         print(f"   ❌ Package import failed: {e}")
@@ -43,7 +43,7 @@ def test_pdf_generation():
             ),
             tickers=["TEST"],
             data_sources=["Test Source"],
-            version="1.0.7",
+            version="1.0.9",
             evidence_log=[]
         )
         
@@ -104,13 +104,27 @@ def test_agent_modules():
     """Test agent modules are importable."""
     print("[4/5] Testing agent modules...")
     try:
-        
-        print("   ✅ Planner module loaded")
-        print("   ✅ Executor module loaded")
-        print("   ✅ Validator module loaded")
-        print("   ✅ Synthesizer module loaded")
+        from jasper.agent.planner import Planner
+        from jasper.agent.executor import Executor
+        from jasper.agent.validator import validator
+        from jasper.agent.synthesizer import Synthesizer
+        from jasper.agent.entity_extractor import EntityExtractor
+        from jasper.agent.reflector import reflect
+
+        assert callable(Planner), "Planner must be a class"
+        assert callable(Executor), "Executor must be a class"
+        assert callable(validator), "validator must be a class"
+        assert callable(Synthesizer), "Synthesizer must be a class"
+        assert callable(EntityExtractor), "EntityExtractor must be a class"
+
+        print("   \u2705 Planner module loaded")
+        print("   \u2705 Executor module loaded")
+        print("   \u2705 Validator module loaded")
+        print("   \u2705 Synthesizer module loaded")
+        print("   \u2705 EntityExtractor module loaded")
+        print("   \u2705 Reflector module loaded")
         return True
-        
+
     except Exception as e:
         print(f"   ❌ Agent modules failed: {e}")
         return False
@@ -144,7 +158,7 @@ def test_template_and_styles():
 
 if __name__ == "__main__":
     print("\n" + "="*60)
-    print("🧪 JASPER v1.0.7 CLI INTEGRATION TESTS")
+    print("🧪 JASPER v1.0.9 CLI INTEGRATION TESTS")
     print("="*60 + "\n")
     
     results = []

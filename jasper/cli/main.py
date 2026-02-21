@@ -1,6 +1,7 @@
 import typer
 import asyncio
 import os
+import json
 from typing import Optional
 from rich.console import Console
 from rich.live import Live
@@ -33,6 +34,31 @@ app = typer.Typer(
 
 # Session cache for last report (for export)
 _last_report: Optional[FinalReport] = None
+
+# Cross-process report persistence
+_CACHE_DIR = Path.home() / ".jasper"
+_LAST_REPORT_PATH = _CACHE_DIR / "last_report.json"
+
+
+def _save_report_to_disk(report: FinalReport) -> None:
+    """Persist the last report to disk so `jasper export` works across process boundaries."""
+    try:
+        _CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        _LAST_REPORT_PATH.write_text(report.model_dump_json(), encoding="utf-8")
+    except Exception:
+        pass  # Non-critical — in-memory fallback still works within the session
+
+
+def _load_report_from_disk() -> Optional[FinalReport]:
+    """Load the last report from the disk cache (cross-process)."""
+    try:
+        if _LAST_REPORT_PATH.exists():
+            return FinalReport.model_validate_json(
+                _LAST_REPORT_PATH.read_text(encoding="utf-8")
+            )
+    except Exception:
+        pass
+    return None
 
 @app.callback()
 def main_callback(ctx: typer.Context):
@@ -238,12 +264,24 @@ def ask_command(query: str = typer.Argument(..., help="Financial research questi
     console.clear()
     console.print(render_banner())
     console.print(f"\n[{THEME['Accent']}]Researching:[/{THEME['Accent']}] {query}\n")
+
+    # Warn visibly when no real AV key is configured
+    if not os.getenv("ALPHA_VANTAGE_API_KEY"):
+        console.print(
+            f"[bold {THEME['Warning']}]⚠  DEMO MODE:[/bold {THEME['Warning']}]"
+            f"[{THEME['Warning']}] No ALPHA_VANTAGE_API_KEY set. "
+            f"Alpha Vantage will return IBM data for ALL tickers. "
+            f"Falling back to yfinance where possible.[/{THEME['Warning']}]\n"
+        )
+
     state = asyncio.run(execute_research(query, console))
     
     # Cache the report for export command
     global _last_report
     _last_report = state.report
-    
+    if state.report:
+        _save_report_to_disk(state.report)
+
     return state
 
 
@@ -258,16 +296,13 @@ def ask_command(query: str = typer.Argument(..., help="Financial research questi
 @app.command(name="version")
 def version_command():
     """Show Jasper version."""
-    # Read version from pyproject.toml
     try:
-        import tomllib
-        with open("pyproject.toml", "rb") as f:
-            data = tomllib.load(f)
-            version = data["project"]["version"]
+        from importlib.metadata import version as pkg_version
+        version = pkg_version("jasper-finance")
     except Exception:
-        # Fallback if toml parsing fails
-        version = "1.0.8"
-    
+        from .. import __version__
+        version = __version__
+
     console.print(f"[bold cyan]Jasper[/bold cyan] version [bold green]{version}[/bold green]")
 
 
@@ -412,6 +447,7 @@ def interactive_command():
             # Update cache
             if state.report:
                 _last_report = state.report
+                _save_report_to_disk(state.report)
             
             if state.status == "Completed" and state.validation and state.validation.is_valid:
                 history.append((user_input, state.final_answer))
@@ -440,7 +476,11 @@ def export_command(format: str = "pdf", out: str = "report.pdf"):
         out (str): Output file path (default: report.pdf)
     """
     global _last_report
-    
+
+    # Try loading from disk if not in memory (cross-process usage)
+    if _last_report is None:
+        _last_report = _load_report_from_disk()
+
     if _last_report is None:
         console.print(f"[bold {THEME['Error']}]Error:[/bold {THEME['Error']}] No report to export.")
         console.print("[dim]Run a research query first:[/dim]")

@@ -1,45 +1,44 @@
-import httpx 
-from typing import Dict, Any, List
+from typing import Any, List
 from .exceptions import DataProviderError
+
 
 class FinancialDataError(Exception):
     """Custom exception for financial data retrieval errors."""
-    pass
 
 
 # --- Financial Data Router ---
-# Aggregates multiple data providers to ensure reliability
+# Aggregates multiple data providers to ensure reliability.
+# Providers are tried in order; the first successful response wins.
 class FinancialDataRouter:
     def __init__(self, providers: List[Any]):
         self.providers = providers
 
-    async def fetch_income_statement(self, ticker: str) -> Dict:
+    async def _fetch_with_fallback(
+        self, method_name: str, ticker: str, label: str
+    ):
+        """Generic fallback loop: try each provider's method in order."""
         errors = []
         for provider in self.providers:
+            method = getattr(provider, method_name, None)
+            if method is None:
+                continue
             try:
-                return await provider.income_statement(ticker)
+                return await method(ticker)
             except Exception as e:
-                errors.append(str(e))
+                errors.append(f"{type(provider).__name__}: {e}")
 
-        error_details = "; ".join(errors)
         raise DataProviderError(
-            f"All providers failed to fetch income statement for {ticker}. "
-            f"Details: {error_details}. "
-            f"Verify the ticker is valid (e.g., AAPL, RELIANCE.NS, INFY.NS)."
+            f"All providers failed to fetch {label} for {ticker}. "
+            f"Details: {'; '.join(errors)}. "
+            f"Verify the ticker is valid (e.g. AAPL, RELIANCE.NS, INFY.NS)."
         )
 
+    async def fetch_income_statement(self, ticker: str):
+        return await self._fetch_with_fallback(
+            "income_statement", ticker, "income statement"
+        )
 
-class FinancialClient:
-    def __init__(self, timeout: float = 10.0):
-        self.client = httpx.AsyncClient(timeout=timeout)
-
-    async def fetch_financial_statement(self, entity: str) -> Dict[str, Any]:
-        """Fetch financial statement data for a given entity."""
-        try:
-            # Placeholder URL; replace with actual financial data API endpoint
-            url = f"https://api.example.com/financials/{entity}"
-            request = httpx.Request("GET", url)
-            response = httpx.Response(404, request=request)
-            raise httpx.HTTPStatusError("Not Found", request=request, response=response)  # Placeholder for demonstration
-        except httpx.HTTPStatusError as e:
-            raise FinancialDataError(f"Failed to fetch data for {entity}: {e}") from e
+    async def fetch_balance_sheet(self, ticker: str):
+        return await self._fetch_with_fallback(
+            "balance_sheet", ticker, "balance sheet"
+        )
