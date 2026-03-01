@@ -1,6 +1,19 @@
 # Jasper Finance — Update Summary
 
-Consolidated changelog from initial release through v1.0.9.
+Consolidated changelog from initial release through v1.1.0.
+
+---
+
+## v1.1.0 — Click/Typer Compatibility Fix (Mar 2026)
+
+**Critical fix for Click 8.3.1 incompatibility with Typer 0.9.0.**
+
+### Dependencies
+- `click>=8.0.0,<8.1.0` — Pinned to compatible version (was `<9.0.0`). Click 8.3.1 breaks Typer 0.9.0's `Parameter.make_metavar()` call.
+
+### Tests
+- ✅ All 77 tests now pass (was 76/77 PASSED, 1 FAILED).
+- Fixed: `test_cli_help` now works without `TypeError` during help rendering.
 
 ---
 
@@ -57,7 +70,7 @@ Consolidated changelog from initial release through v1.0.9.
 - **Partial-Success Validation** — Validator proceeds with synthesis if ≥ 50 % of tasks complete, with confidence penalty.
 - **Reflector Agent** — `reflector.py` fully implemented: transient-error retry loop, permanent-error graceful skip, integrated into controller pipeline between Execution and Validation.
 - **Dead Code Removed** — `jasper/tools/aplha_vantage.py`, `jasper/cli/render.py`, `jasper/main.py`, and `FinancialClient` placeholder removed.
-- **Default LLM upgraded** — Changed from `xiaomi/mimo-v2-flash:free` to `google/gemini-2.0-flash-exp:free`; `OPENROUTER_MODEL` env override documented.
+- **Default LLM upgraded** — Changed to `stepfun/step-3.5-flash:free`; `OPENROUTER_MODEL` env override documented.
 - **Context Window Guard** — Synthesizer truncates task data to a token budget before building the synthesis prompt.
 - **PDF Unique Filenames** — Exports now use `jasper_report_YYYYMMDD_HHMMSS.pdf` format.
 - **Report Persistence** — Reports saved as JSON to `exports/` for cross-session recall.

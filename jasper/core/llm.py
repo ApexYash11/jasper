@@ -19,7 +19,7 @@ def get_llm(temperature: float = 0) -> ChatOpenAI:
     # Default: Gemini Flash Exp (free, capable, good JSON compliance).
     # Override via OPENROUTER_MODEL env var for a different model.
     # Recommended for production: openai/gpt-4o-mini or anthropic/claude-haiku
-    model = os.getenv("OPENROUTER_MODEL", "google/gemini-2.0-flash-exp:free")
+    model = os.getenv("OPENROUTER_MODEL", "stepfun/step-3.5-flash:free")
 
     return ChatOpenAI(
         model=model,

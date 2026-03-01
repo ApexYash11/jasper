@@ -193,7 +193,7 @@ ALPHA_VANTAGE_API_KEY=your-alpha-vantage-key
 
 ### Step 3: (Optional) Choose a Model
 
-Jasper defaults to `google/gemini-2.0-flash-exp:free` via OpenRouter. Override with:
+Jasper defaults to `stepfun/step-3.5-flash:free` via OpenRouter. Override with:
 ```bash
 export OPENROUTER_MODEL="openai/gpt-4o-mini"   # recommended for production
 export OPENROUTER_MODEL="anthropic/claude-haiku-20240307"
@@ -417,4 +417,4 @@ See [LICENSE](LICENSE) for full legal text.
 
 ---
 
-**Built by analysts, for analysts. Stop guessing. Start researching. Jasper Finance v1.0.9**
+**Built by analysts, for analysts. Stop guessing. Start researching. Jasper Finance v1.1.0**
