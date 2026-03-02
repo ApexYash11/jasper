@@ -113,14 +113,9 @@ td {
     min-width: 35pt;
 }
 
-/* Right-align numeric columns (3+ usually) */
-td:nth-child(n+3) {
-    text-align: right;
-    font-family: 'Courier New', monospace;
-    font-weight: 400;
-}
-
-th:nth-child(n+3) {
+/* Explicit numeric-cell alignment utility */
+td.numeric,
+th.numeric {
     text-align: right;
 }
 
@@ -238,12 +233,17 @@ tr:nth-child(odd) {
     font-weight: normal;
     border: 0.5pt solid #cbd5e0;
     padding: 5pt 5pt;
-    text-align: right;
+    text-align: left;
     line-height: 1.3;
     word-break: break-word;
     overflow-wrap: break-word;
     white-space: normal;
     min-width: 35pt;
+}
+
+.synthesis-content table td:nth-child(n+3),
+.synthesis-content table th:nth-child(n+3) {
+    text-align: right;
 }
 
 .synthesis-content table tr:nth-child(even) {
@@ -260,7 +260,7 @@ tr:nth-child(odd) {
 .numeric {
     text-align: right;
     font-family: 'Courier New', monospace;
-    font-weight: bold;
+    font-weight: 400;
 }
 
 /* Page Breaking Rules */

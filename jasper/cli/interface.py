@@ -254,7 +254,7 @@ def _fix_markdown_tables(text: str) -> str:
                 # Try to process the table buffer
                 if num_columns:
                     table_lines = _parse_financial_table(table_buffer, num_columns)
-                    result.extend(table_lines)
+                    result.extend(table_lines.split('\n') if table_lines else [])
                 else:
                     # No columns detected, just pass through
                     for row_type, cells in table_buffer:
@@ -294,7 +294,7 @@ def _fix_markdown_tables(text: str) -> str:
     if in_table and table_buffer:
         if num_columns:
             table_lines = _parse_financial_table(table_buffer, num_columns)
-            result.extend(table_lines)
+            result.extend(table_lines.split('\n') if table_lines else [])
         else:
             for row_type, cells in table_buffer:
                 result.append('| ' + ' | '.join(cells) + ' |')
@@ -312,13 +312,13 @@ def _normalize_cell(cell: str) -> str:
     return cell.strip()
 
 
-def _parse_financial_table(table_buffer: list, num_columns: int) -> list:
+def _parse_financial_table(table_buffer: list, num_columns: int) -> str:
     """
     Parse a table buffer with rows grouped by type (separator/data).
     Handles financial data formatting and reconstructs compressed rows.
     """
     if not table_buffer or num_columns is None or num_columns < 2:
-        return []
+        return ""
     
     result = []
     rows_to_emit = []
@@ -353,8 +353,6 @@ def _parse_financial_table(table_buffer: list, num_columns: int) -> list:
                 # Fewer cells than columns - pad it
                 cells_padded = cells + [''] * (num_columns - len(cells))
                 result.append('| ' + ' | '.join(cells_padded) + ' |')
-    
-    return result
     
     return '\n'.join(result)
 

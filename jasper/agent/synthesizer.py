@@ -1,3 +1,4 @@
+import inspect
 from typing import Any
 from langchain_core.prompts import ChatPromptTemplate
 from ..core.state import Jasperstate
@@ -124,7 +125,9 @@ class Synthesizer:
                 token = chunk.content if hasattr(chunk, 'content') else str(chunk)
                 full_response += token
                 if token_callback:
-                    token_callback(token)
+                    callback_result = token_callback(token)
+                    if inspect.isawaitable(callback_result):
+                        await callback_result
         except Exception as e:
             # If streaming fails (some models don't support it), fall back to ainvoke
             self.logger.log("SYNTHESIS_STREAM_FALLBACK", {"error": str(e)})

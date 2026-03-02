@@ -109,23 +109,24 @@ class Planner:
     def _infer_mode(self, query: str, intent_category: str) -> ReportMode:
         """Determines report mode. Intent category takes priority over keywords."""
         query_lower = query.lower()
+        risk_keywords = ["risk", "exposure", "concentration", "threat", "weakness"]
 
         # Intent category is the primary signal — respect it first
         if intent_category == "qualitative":
             # Even if query mentions revenue/margins, if LLM classified as qualitative,
             # treat as business model / general analysis
-            if any(w in query_lower for w in ["risk", "exposure", "threat", "weakness"]):
+            if any(w in query_lower for w in risk_keywords):
                 return ReportMode.RISK_ANALYSIS
             return ReportMode.BUSINESS_MODEL
 
         if intent_category == "quantitative":
             # Risk keywords override quantitative mode
-            if any(w in query_lower for w in ["risk", "exposure", "concentration", "threat", "weakness"]):
+            if any(w in query_lower for w in risk_keywords):
                 return ReportMode.RISK_ANALYSIS
             return ReportMode.FINANCIAL_EVIDENCE
 
         # Mixed intent — use keywords to disambiguate
-        if any(w in query_lower for w in ["risk", "exposure", "concentration", "threat", "weakness"]):
+        if any(w in query_lower for w in risk_keywords):
             return ReportMode.RISK_ANALYSIS
         if any(w in query_lower for w in ["revenue", "margin", "earnings", "profit", "debt", "balance sheet"]):
             return ReportMode.FINANCIAL_EVIDENCE

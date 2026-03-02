@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-CLI Integration Tests for Jasper v1.0.9
+CLI Integration Tests for Jasper v1.1.0
 Tests the reorganized package structure with new scripts/, config/, and docs/ layout.
 """
 
@@ -43,7 +43,7 @@ def test_pdf_generation():
             ),
             tickers=["TEST"],
             data_sources=["Test Source"],
-            version="1.0.9",
+            version="1.1.0",
             evidence_log=[]
         )
         
