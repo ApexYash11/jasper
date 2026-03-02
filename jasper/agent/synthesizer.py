@@ -26,7 +26,7 @@ class Synthesizer:
             cut = max_chars
         return data_context[:cut] + "\n\n[... data truncated for context window ...]\n"
 
-    async def synthesize(self, state: Jasperstate) -> str:
+    async def synthesize(self, state: Jasperstate, token_callback=None) -> str:
         self.logger.log("SYNTHESIS_STARTED", {"plan_length": len(state.plan)})
 
         if not state.validation or not state.validation.is_valid:
@@ -43,7 +43,6 @@ class Synthesizer:
                 desc = task.description
             data_context += f"Task: {desc}\nData: {result}\n\n"
 
-        # Guard against overflowing small context windows
         data_context = self._truncate_context(data_context)
 
         # Detect multi-ticker comparison mode
@@ -60,12 +59,16 @@ class Synthesizer:
             comparison_note = (
                 "\n\nCOMPARATIVE ANALYSIS MODE: The data covers multiple tickers: "
                 + ", ".join(tickers)
-                + ". Explicitly cross-analyse their metrics: margins, growth rates, "
-                "valuations, and debt ratios side-by-side. Include a COMPARISON TABLE."
+                + ". Use compact comparison tables and never exceed 3 columns per table "
+                "(Metric + up to 2 tickers). If there are more than 2 tickers, split into multiple tables. "
+                "Include a comparison table using this pattern:\n"
+                "| Metric | Ticker A | Ticker B |\n"
+                "|:---|:---|:---|\n"
+                "| Revenue | $X.XB | $Y.YB |"
             )
 
         prompt = ChatPromptTemplate.from_template("""
-    ROLE: You are Jasper, a deterministic financial intelligence engine for institutional analysts.
+    ROLE: You are Jasper, a deterministic financial intelligence engine.
     ACTIVE REPORT MODE: {report_mode}
     TASK: Synthesize research data into a professional analyst memo.{comparison_note}
 
@@ -74,63 +77,64 @@ class Synthesizer:
     Research Data:
     {data}
 
-    REPORT SCOPE CONSTRAINTS:
-    - BUSINESS_MODEL: Focus strictly on business quality, strategy, and moats.
-    - RISK_ANALYSIS: Focus strictly on exposures, concentration, and threats.
-    - FINANCIAL_EVIDENCE: Focus strictly on presenting verified financial metrics.
-    - GENERAL: Provide a balanced overview.
+    CRITICAL TABLE FORMATTING RULE — NEVER VIOLATE THIS:
+    Every table row MUST be on its own separate line. Never put two rows on one line.
+    Every row MUST start with | and end with |.
+    Never emit placeholder rows like |  |  |.
+    Keep tables compact: max 3 columns (prefer multiple small tables over one wide table).
+    Keep headers short (1-3 words) and use compact numbers (B/M/K, percentages).
+    If content is non-comparative, prefer bullets over tables.
 
-    REPORT STRUCTURE (MANDATORY):
+    CORRECT (each row on its own line):
+    | Metric | Value |
+    |:---|:---|
+    | Revenue | $130.5B |
+    | Net Income | $29.9B |
 
-    1. EXECUTIVE SIGNAL BOX
-       **COMPANY**: [Name]
-       **CORE ENGINE**: [One-sentence business model logic]
-       **THESIS**: [One-sentence research conclusion]
+    WRONG (never do this — will break rendering):
+    | Revenue | $130.5B | | Net Income | $29.9B |
 
-    2. EXECUTIVE SUMMARY
-       - SKIMMABLE KEY FINDINGS: 3-4 bullet points.
-       - SCOPE OF EVIDENCE: What is proven vs. what is inferred.
+    WRONG (never do this — empty filler row):
+    |  |  |
 
-    3. BUSINESS MODEL MECHANICS
-       - Qualitative narrative of revenue/margin logic.
-       - Use *Assumptions* block (italicized) for inferred logic.
-       - End with: **What This Means:** [interpretation paragraph]
+    REPORT STRUCTURE:
+    1. EXECUTIVE SIGNAL BOX — Company, Core Engine, Thesis (one sentence each)
+    2. EXECUTIVE SUMMARY — 3-4 bullet key findings
+    3. BUSINESS MODEL MECHANICS — qualitative narrative
+    4. FINANCIAL EVIDENCE — compact tables using the CORRECT format above, each followed by What This Means:
+    5. LIMITATIONS & DATA GAPS — use ### ⚠️ WARNING: [Issue Name] format
 
-    4. FINANCIAL EVIDENCE
-       Tables MUST follow this exact format — each row on its own line:
-
-       | Metric | Value |
-       |:---|:---|
-       | Item 1 | Data 1 |
-       | Item 2 | Data 2 |
-
-       Rules:
-       - Separator row (|:---|:---|) on its OWN line immediately after header.
-       - NEVER put multiple rows on one line.
-       - Use currency shorthand: $130.5B, $45M, 12.3%.
-       - Bold all column headers.
-       - After each table: **What This Means:** [interpretation]
-       - Missing data: use "N/A".
-
-    5. LIMITATIONS & DATA GAPS
-       Use: ### ⚠️ WARNING: [Issue Name]
-       DO NOT use blockquotes (>), colored text, or diff syntax blocks.
-
-    FORMATTING CONSTRAINTS:
-    - Neutral, institutional tone. No conversational filler.
-    - Bold (**text**) for emphasis. ## for sections, ### for subsections.
-    - Numbers: always B/M/K shorthand in tables.
+    FORMATTING: Neutral institutional tone. Bold for emphasis. ## sections, ### subsections.
+    Numbers: always B/M/K shorthand in tables. Missing data: use N/A.
 
     Analysis:
     """)
 
         chain = prompt | self.llm
-        response = await chain.ainvoke({
-            "query": state.query,
-            "data": data_context,
-            "report_mode": state.report_mode.value,
-            "comparison_note": comparison_note,
-        })
+
+        # Stream tokens to callback if provided, otherwise collect silently
+        full_response = ""
+        try:
+            async for chunk in chain.astream({
+                "query": state.query,
+                "data": data_context,
+                "report_mode": state.report_mode.value,
+                "comparison_note": comparison_note,
+            }):
+                token = chunk.content if hasattr(chunk, 'content') else str(chunk)
+                full_response += token
+                if token_callback:
+                    token_callback(token)
+        except Exception as e:
+            # If streaming fails (some models don't support it), fall back to ainvoke
+            self.logger.log("SYNTHESIS_STREAM_FALLBACK", {"error": str(e)})
+            response = await chain.ainvoke({
+                "query": state.query,
+                "data": data_context,
+                "report_mode": state.report_mode.value,
+                "comparison_note": comparison_note,
+            })
+            full_response = response.content
 
         self.logger.log("SYNTHESIS_COMPLETED", {"confidence": state.validation.confidence})
-        return response.content
+        return full_response

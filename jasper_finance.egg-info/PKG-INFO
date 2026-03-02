@@ -20,7 +20,7 @@ Requires-Python: >=3.9
 Description-Content-Type: text/markdown
 License-File: LICENSE
 Requires-Dist: typer[all]==0.9.0
-Requires-Dist: click<9.0.0,>=8.0.0
+Requires-Dist: click<8.1.0,>=8.0.0
 Requires-Dist: rich==13.0.0
 Requires-Dist: pydantic>=2.0.0
 Requires-Dist: langchain-core>=0.1.0
@@ -36,12 +36,14 @@ Requires-Dist: markdown-it-py>=3.0.0
 Provides-Extra: dev
 Requires-Dist: pytest>=7.0; extra == "dev"
 Requires-Dist: pytest-cov>=4.0; extra == "dev"
+Requires-Dist: pytest-asyncio>=0.23.0; extra == "dev"
+Requires-Dist: pytest-mock>=3.12.0; extra == "dev"
 Dynamic: license-file
 
 # Jasper Finance
 
 > **The terminal-native autonomous financial research agent.**  
-> Deterministic planning. Tool-grounded data. Validation gating. Human-trustworthy answers.
+> Deterministic planning. Tool-grounded data. Reflection-driven recovery. Human-trustworthy answers.
 
 [![PyPI](https://img.shields.io/pypi/v/jasper-finance.svg)](https://pypi.org/project/jasper-finance/)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
@@ -56,26 +58,32 @@ Dynamic: license-file
 
 Financial AI is often unreliable. Most tools produce confident-sounding answers that are frequently backed by hallucinations or missing data. **Jasper takes a different approach: it treats every question as a mission.**
 
-Instead of just "chatting," Jasper follows a rigorous 4-stage pipeline:
+Instead of just "chatting," Jasper follows a rigorous 5-stage pipeline:
 
-1. **Plan** → Decomposes your question into structured research tasks.
+1. **Plan** → Decomposes your question into structured research tasks with intent classification.
 2. **Execute** → Fetches real-time data from authoritative APIs (Alpha Vantage, yfinance).
-3. **Validate** → Analyzes data completeness and financial logic.
-4. **Synthesize** → Generates a report **only if validation passes**.
+3. **Reflect** → Retries transient failures, degrades gracefully on permanent ones.
+4. **Validate** → Analyzes data completeness and financial logic with partial-success support.
+5. **Synthesize** → Generates a report with a confidence score and full audit trail.
 
-**If validation fails, Jasper stops. No hallucinations. Confidence = 0.**
+**Partial data? Jasper continues with caveats and a penalised confidence score — no silent hallucinations.**
 
 ---
 
 ## ✨ Key Features
 
-* 🧠 **Autonomous Planning**: Automatically breaks down complex questions (e.g., "Compare Apple and Microsoft's R&D spend vs Revenue") into executable sub-tasks.
-* ⚙️ **Tool-Grounded Data**: Direct integration with [Alpha Vantage](https://www.alphavantage.co/) and [yfinance](https://github.com/ranaroussi/yfinance).
-* ✅ **Validation Gate**: A "Mission Control" that blocks synthesis if data is missing or inconsistent.
-* 📊 **Confidence Scoring**: Transparent breakdown of data coverage, data quality, and inference strength.
-* 💬 **Interactive REPL**: A professional CLI environment for iterative research.
+* 🧠 **Autonomous Planning**: Automatically breaks down complex questions into executable sub-tasks with query-intent classification (`quantitative` / `qualitative` / `mixed`).
+* ⚙️ **Tool-Grounded Data**: Income statements, balance sheets, cash flow, and real-time quotes via [Alpha Vantage](https://www.alphavantage.co/) and [yfinance](https://github.com/ranaroussi/yfinance). Supports US and Indian (NSE `.NS`) stocks.
+* 🔄 **Reflector Agent**: Post-execution recovery loop that retries transient network/rate-limit failures up to `max_retries` times per task before gracefully skipping.
+* ✅ **Partial-Success Validation**: If ≥ 50 % of tasks complete, synthesis proceeds with a confidence penalty and a visible data-gap caveat instead of hard-failing.
+* 📊 **Confidence Breakdown**: Transparent `data_coverage × data_quality × inference_strength` scoring per report.
+* ⚡ **LLM Streaming**: Synthesis tokens stream to the terminal in real-time via a Rich `Live` panel — no more blank screens.
+* 💬 **Session Memory**: Interactive mode carries the last 3 Q&A pairs as context so follow-up questions work naturally.
+* 🌐 **Qualitative Queries**: Questions without a ticker (e.g. "Explain yield curve inversion") are answered directly from LLM domain knowledge.
+* 🗄️ **TTL Response Cache**: API responses are cached in-memory for 15 minutes (configurable via `JASPER_CACHE_TTL_SECS`) to save Alpha Vantage quota. Real-time quotes always bypass the cache.
+* 🐍 **Public Python API**: Use Jasper programmatically in notebooks, web APIs, or CI pipelines via `from jasper import run_research`.
+* 📄 **PDF & HTML Export**: Professional research reports with timestamped unique filenames and persistent JSON cache across sessions.
 * 🎨 **Rich Terminal UI**: Live progress boards, tree views, and structured reports.
-* 📄 **PDF Export**: Generate professional financial research reports and export as PDFs.
 
 ---
 
@@ -111,8 +119,8 @@ chmod +x scripts/build.sh && ./scripts/build.sh
 ### Option 3: Docker (Production)
 
 ```bash
-docker build -t jasper-finance:1.0.7 .
-docker run -it jasper-finance:1.0.7 interactive
+docker build -t jasper-finance:1.0.9 .
+docker run -it jasper-finance:1.0.9 interactive
 ```
 
 ---
@@ -225,7 +233,15 @@ OPENROUTER_API_KEY=sk-or-v1-xxxxxxxxxxxxx
 ALPHA_VANTAGE_API_KEY=your-alpha-vantage-key
 ```
 
-### Step 3: Verify Setup
+### Step 3: (Optional) Choose a Model
+
+Jasper defaults to `stepfun/step-3.5-flash:free` via OpenRouter. Override with:
+```bash
+export OPENROUTER_MODEL="openai/gpt-4o-mini"   # recommended for production
+export OPENROUTER_MODEL="anthropic/claude-haiku-20240307"
+```
+
+### Step 4: Verify Setup
 
 ```bash
 jasper doctor
@@ -249,17 +265,58 @@ Expected output:
 jasper ask "What is Nvidia's revenue trend over the last 3 years?"
 ```
 
-### Interactive Mode (Multiple Queries)
+### Interactive Mode (Multiple Queries with Session Memory)
 
 ```bash
 jasper interactive
+```
+
+Session memory is automatic — follow-up questions like *"and what about their cash flow?"* retain context from the previous 3 exchanges.
+
+### Qualitative / Macro Queries (No Ticker Required)
+
+```bash
+jasper ask "Explain yield curve inversion and its impact on equities"
+jasper ask "What is quantitative tightening?"
+```
+
+### Indian & International Stocks
+
+```bash
+jasper ask "What is Reliance Industries revenue trend?"   # auto-resolves RELIANCE.NS
+jasper ask "Analyze Infosys operating margins"            # INFY.NS
+jasper ask "Compare HDFC Bank and ICICI Bank"             # HDFCBANK.NS, ICICIBANK.NS
 ```
 
 ### Export to PDF
 
 ```bash
 jasper export "Analyze Tesla's operating margins"
+# Saves as: exports/jasper_report_20260222_143012.pdf  (unique per run)
 ```
+
+---
+
+## 🐍 Python API
+
+Use Jasper programmatically in notebooks, FastAPI routes, or CI pipelines:
+
+```python
+import asyncio
+from jasper import run_research, FinalReport
+
+report: FinalReport | None = asyncio.run(
+    run_research("What is Apple's revenue trend over the last 3 years?")
+)
+
+if report:
+    print(report.synthesis_text)
+    print(f"Confidence: {report.confidence_score:.0%}")
+    print(f"Tickers analysed: {report.tickers}")
+    print(f"Data sources: {report.data_sources}")
+```
+
+`run_research()` returns a fully populated `FinalReport` Pydantic model or `None` if the pipeline failed.
 
 ---
 
@@ -274,37 +331,50 @@ jasper export "Analyze Tesla's operating margins"
                      ▼
         ┌────────────────────────┐
         │   1️⃣ PLANNER AGENT     │
-        │  Breaks down question   │
-        │  into research tasks    │
+        │ Intent classification   │
+        │ (quant / qual / mixed)  │
+        │ Task decomposition      │
         └────────────┬────────────┘
                      │
                      ▼
         ┌────────────────────────┐
         │ 2️⃣ EXECUTION ENGINE    │
-        │  Fetches real data      │
-        │  - Alpha Vantage        │
-        │  - yfinance             │
+        │  Income statement       │
+        │  Balance sheet          │
+        │  Cash flow              │
+        │  Real-time quote        │
+        │  (Alpha Vantage + yf)   │
         └────────────┬────────────┘
                      │
                      ▼
         ┌────────────────────────┐
-        │ 3️⃣ VALIDATION GATE     │
-        │  Checks data quality    │
-        │  & completeness         │
+        │   3️⃣ REFLECTOR         │
+        │ Retry transient errors  │
+        │ Degrade on permanent    │
+        │  ones gracefully        │
+        └────────────┬────────────┘
+                     │
+                     ▼
+        ┌────────────────────────┐
+        │ 4️⃣ VALIDATION GATE     │
+        │ ≥50% tasks → partial ✅ │
+        │ <50% tasks → fail ❌    │
+        │ Confidence breakdown    │
         └────┬───────────┬────────┘
              │           │
           ✅ PASS    ❌ FAIL
              │           │
              ▼           ▼
       ┌─────────────┐  Research Failed
-      │ 4️⃣ SYNTHESIZE│  (Confidence = 0)
-      │   Report    │
+      │ 5️⃣ SYNTHESIZE│  (partial data
+      │  (streaming) │   reported)
       └──────┬──────┘
              │
              ▼
     ┌─────────────────────┐
     │   FINAL REPORT      │
     │  + Confidence Score │
+    │  + Audit Trail      │
     └─────────────────────┘
 ```
 
@@ -315,7 +385,7 @@ jasper export "Analyze Tesla's operating margins"
 | Command | What It Does |
 | --- | --- |
 | `jasper ask "question"` | Execute a single research mission |
-| `jasper interactive` | Enter multi-query mode |
+| `jasper interactive` | Enter multi-query mode with session memory |
 | `jasper export <query>` | Generate research and export as PDF report |
 | `jasper doctor` | Verify API keys and setup |
 | `jasper version` | Show installed version |
@@ -323,15 +393,42 @@ jasper export "Analyze Tesla's operating margins"
 
 ---
 
+## 📊 Available Data Tools
+
+| Tool | Description | Providers |
+| --- | --- | --- |
+| `income_statement` | Annual + quarterly P&L (revenue, EBIT, net income) | Alpha Vantage, yfinance |
+| `balance_sheet` | Assets, liabilities, equity, debt ratios | Alpha Vantage, yfinance |
+| `cash_flow` | Operating / investing / financing cash flows | Alpha Vantage, yfinance |
+| `realtime_quote` | Live price, market cap, P/E, 52-week range, volume | yfinance (always fresh) |
+| `key_metrics` | EV/EBITDA, ROE, ROA, margins, growth rates | yfinance |
+
+> Alpha Vantage is tried first; yfinance is the automatic fallback. Both providers support US and Indian NSE stocks (`.NS` suffix).
+
+---
+
+## ⚙️ Environment Variables
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `OPENROUTER_API_KEY` | *(required)* | Your OpenRouter API key |
+| `ALPHA_VANTAGE_API_KEY` | `demo` | Alpha Vantage key (demo = IBM only) |
+| `OPENROUTER_MODEL` | `google/gemini-2.0-flash-exp:free` | LLM model override |
+| `JASPER_CACHE_TTL_SECS` | `900` | API response cache TTL in seconds |
+
+---
+
 ## ❓ Troubleshooting
 
 | Problem | Solution |
 | --- | --- |
-| `Research Failed` | By design. Check validation issues. Usually means incomplete data or invalid ticker. |
-| `API Rate Limit Hit` | Free Alpha Vantage: ~5 calls/min. Wait or upgrade key. |
+| `Research Failed` | By design. Check validation issues. Usually incomplete data or invalid ticker. |
+| `Partial data — confidence penalised` | Normal for rate-limited sessions. Report still generated with caveats. |
+| `API Rate Limit Hit` | Free Alpha Vantage: ~25 calls/day. Jasper's TTL cache reduces redundant calls. |
 | `API KEY not set` | Run `jasper doctor` and export missing keys. |
-| `Ticker not found` | Use symbol (AAPL), not name (Apple). International: add suffix (.NS, .BSE). |
+| `Ticker not found` | Use symbol (AAPL), not name (Apple). Indian: add `.NS` suffix (RELIANCE.NS). |
 | `pycairo build fails` | Install Cairo: `brew install cairo` (macOS) or `sudo apt install libcairo2-dev` (Linux). |
+| `nan in report output` | Fixed in v1.0.9 — upgrade with `pip install --upgrade jasper-finance`. |
 
 ---
 
@@ -362,4 +459,4 @@ See [LICENSE](LICENSE) for full legal text.
 
 ---
 
-**Built by analysts, for analysts. Stop guessing. Start researching. Jasper Finance v1.0.7**
+**Built by analysts, for analysts. Stop guessing. Start researching. Jasper Finance v1.1.0**

@@ -72,7 +72,8 @@ class JasperController:
             state.status = "Synthesizing"
             self.logger.log("SYNTHESIS_STARTED", {})
             try:
-                state.final_answer = await self.synthesizer.synthesize(state)
+                token_cb = getattr(self.logger, 'on_synthesis_token', None)
+                state.final_answer = await self.synthesizer.synthesize(state, token_callback=token_cb)
                 self.logger.log("FINAL_ANSWER", {"answer": state.final_answer})
                 state.status = "Completed"
                 

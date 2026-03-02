@@ -2,6 +2,7 @@ import typer
 import asyncio
 import os
 import json
+import time
 from datetime import datetime
 from typing import Optional
 from rich.console import Console
@@ -24,7 +25,10 @@ from ..core.state import Jasperstate, FinalReport
 from ..export.pdf import export_report_to_pdf, export_report_html
 
 # Import UI components
-from .interface import render_banner, render_mission_board, render_final_report, render_forensic_report
+from .interface import (
+    render_banner, render_mission_board, render_final_report, render_forensic_report,
+    build_persistent_board, update_phase_node, append_task_to_node, update_synthesis_status
+)
 from ..core.config import THEME
 
 console = Console()
@@ -80,64 +84,247 @@ def main_callback(ctx: typer.Context):
         console.print(f"Run '[{THEME['Accent']}]python -m jasper ask --help[/{THEME['Accent']}]' for more information on a command.")
 
 class RichLogger(SessionLogger):
-    def __init__(self, live: Live):
+    """
+    Logger that manages persistent mission board with 3 phases: PLANNING → EXECUTION → SYNTHESIS
+    Board is built ONCE and never rebuilt; nodes are appended to in-place.
+    """
+    def __init__(self, board_context):
         super().__init__()
-        self.live = live
-        self.tasks = [] # List of task dicts for render_mission_board
-        self.overall_status = "[PLANNING] Initializing research engine..."
+        # Unpack the persistent board context
+        self.live = board_context["live"]
+        self.board_panel = board_context["board_panel"]
+        self.planning_node = board_context["planning_node"]
+        self.execution_node = board_context["execution_node"]
+        self.synthesis_node = board_context["synthesis_node"]
+        
+        # Track task data for reference
+        self.planning_tasks = {}  # {task_desc: task_obj}
+        self.execution_tasks = {}
+        self.synthesis_buffer = ""
+        self._last_stream_update_chars = 0
+        self._last_preview_text = ""
+        self._task_started_at = {}
+
+        # Keep streaming UI concise: never show full generated output in-flight
+        self._preview_char_limit = 160
+        self._preview_update_every_chars = 120
 
     def log(self, event_type: str, payload: dict):
-        # Override to update UI instead of printing JSON
+        """Log events and update persistent board."""
         
         if event_type == "PLANNER_STARTED":
-            self.overall_status = "[PLANNING] Analyzing query and requirements..."
+            status_line = "🔍 Analyzing query and requirements..."
+            update_phase_node(self.planning_node, status_text=status_line)
+            self.live.update(self.board_panel)
 
         elif event_type == "PLAN_CREATED":
-            # Initialize tasks from plan
-            self.tasks = [
-                {"description": t.get("description", "Unknown Task"), "status": "pending", "detail": ""}
-                for t in payload.get("plan", [])
-            ]
-            count = len(self.tasks)
-            self.overall_status = f"[PLANNING] Decomposing query into {count} sub-tasks..."
-            self.live.update(render_mission_board(self.tasks, self.overall_status))
+            # Initialize planning tasks
+            plan = payload.get("plan", [])
+            count = len(plan)
+            status_line = f"📋 Decomposing query into {count} sub-tasks..."
+            
+            # Store task descriptions
+            for task in plan:
+                desc = task.get("description", "Unknown Task")
+                self.planning_tasks[desc] = {"status": "pending", "detail": ""}
+            
+            # Update node with status + tasks
+            update_phase_node(self.planning_node, status_text=status_line, tasks=[
+                {
+                    "description": desc,
+                    "status": "pending",
+                    "detail": ""
+                }
+                for desc in self.planning_tasks.keys()
+            ])
+            self.live.update(self.board_panel)
 
         elif event_type == "TASK_STARTED":
-            # Update task status to running
             desc = payload.get("description")
-            for t in self.tasks:
-                if t["description"] == desc:
-                    t["status"] = "running"
-                    t["detail"] = "Executing..."
-                    break
-            self.overall_status = "[EXECUTING] Fetching live market data..."
-            self.live.update(render_mission_board(self.tasks, self.overall_status))
+            if desc:
+                self._task_started_at[desc] = time.perf_counter()
+            
+            # Add to execution node (planning section stays as is)
+            if desc not in self.execution_tasks:
+                append_task_to_node(self.execution_node, f"► {desc}", status="running")
+                self.execution_tasks[desc] = {"status": "running", "detail": ""}
+            
+            update_synthesis_status(self.execution_node, "⚙️  Fetching live market data...")
+            self.live.update(self.board_panel)
 
         elif event_type == "TASK_COMPLETED":
-            # Find the running task and mark completed
-            status = payload.get("status")
-            for t in self.tasks:
-                if t["status"] == "running":
-                    t["status"] = "success" if status == "completed" else "failed"
-                    t["detail"] = ""
-                    break
-            self.live.update(render_mission_board(self.tasks, self.overall_status))
+            desc = payload.get("description")
+            status = payload.get("status", "pending")
+            
+            if desc in self.execution_tasks:
+                self.execution_tasks[desc]["status"] = status
+
+            duration_text = ""
+            if desc in self._task_started_at:
+                elapsed = max(0.0, time.perf_counter() - self._task_started_at.pop(desc))
+                duration_text = f" ({elapsed:.1f}s)"
+
+            if desc:
+                if status == "completed":
+                    append_task_to_node(self.execution_node, f"✔ {desc}{duration_text}", status="success")
+                    update_synthesis_status(self.execution_node, f"✅ Completed: {desc[:60]}{duration_text}")
+                else:
+                    append_task_to_node(self.execution_node, f"✖ {desc}{duration_text}", status="failed")
+                    update_synthesis_status(self.execution_node, f"⚠️ Failed: {desc[:60]}{duration_text}")
+            
+            self.live.update(self.board_panel)
+
+        elif event_type == "ENTITY_EXTRACTION_STARTED":
+            update_synthesis_status(self.planning_node, "🔍 Identifying entities & intent...")
+            self.live.update(self.board_panel)
+
+        elif event_type == "MODE_INFERRED":
+            mode = payload.get("mode", "").upper()
+            update_synthesis_status(self.planning_node, f"📋 Mode: {mode} — building task plan...")
+            self.live.update(self.board_panel)
 
         elif event_type == "VALIDATION_STARTED":
-            self.overall_status = "[VALIDATING] Verifying data integrity..."
-            self.live.update(render_mission_board(self.tasks, self.overall_status))
+            update_synthesis_status(self.synthesis_node, "✓ Verifying data integrity...")
+            self.live.update(self.board_panel)
 
         elif event_type == "SYNTHESIS_STARTED":
-            self.overall_status = "[SYNTHESIZING] Compiling executive report..."
-            self.live.update(render_mission_board(self.tasks, self.overall_status))
+            update_synthesis_status(self.synthesis_node, "✍️  Compiling executive report...")
+            self.live.update(self.board_panel)
+
+        elif event_type == "REFLECTION_STARTED":
+            update_synthesis_status(self.execution_node, "🔄 Checking for recoverable failures...")
+            self.live.update(self.board_panel)
+
+        elif event_type == "REFLECTOR_RETRYING":
+            desc = payload.get("description", "task")[:50]
+            attempt = payload.get("attempt", 1)
+            update_synthesis_status(self.execution_node, f"🔁 Retry {attempt}: {desc}...")
+            self.live.update(self.board_panel)
+
+        elif event_type == "REFLECTOR_COMPLETED":
+            recovered = payload.get("recovered", 0)
+            still_failed = payload.get("still_failed", 0)
+            if recovered > 0:
+                status = f"✅ Recovered {recovered} task(s)"
+            elif still_failed > 0:
+                status = f"⚠️ {still_failed} task(s) unrecoverable — proceeding with partial data"
+            else:
+                status = "✅ All tasks nominal"
+            update_synthesis_status(self.execution_node, status)
+            self.live.update(self.board_panel)
+
+        elif event_type == "VALIDATION_COMPLETED":
+            conf = payload.get("confidence", 0)
+            is_valid = payload.get("is_valid", False)
+            if is_valid:
+                status = f"✅ Confidence: {conf:.0%} — Starting synthesis..."
+            else:
+                status = f"❌ Validation failed (confidence: {conf:.0%})"
+            update_synthesis_status(self.synthesis_node, status)
+            self.live.update(self.board_panel)
+
+    def on_synthesis_token(self, token: str) -> None:
+        """
+        Called by synthesizer for each streamed token.
+        Streams a SHORT preview only (never full in-flight output).
+        Updates at sentence boundaries or periodic character intervals.
+        """
+        self.synthesis_buffer += token
+        
+        # Only update UI at safe boundary conditions:
+        # 1. After a sentence ending (., !, ?)
+        # 2. Every N accumulated characters (to show progress)
+        should_update = False
+        
+        if token.rstrip().endswith((".", "!", "?")):
+            should_update = True
+        elif len(self.synthesis_buffer) - self._last_stream_update_chars >= self._preview_update_every_chars:
+            should_update = True
+        
+        if should_update:
+            # Show short sanitized preview - avoid echoing full model output
+            normalized = " ".join(self.synthesis_buffer.split()).strip()
+            if not normalized:
+                return
+
+            if len(normalized) > self._preview_char_limit:
+                preview = "..." + normalized[-self._preview_char_limit:]
+            else:
+                preview = normalized
+            
+            # Filter out low-value content (disclaimers, methodology)
+            if not self._is_low_value_content(preview) and preview != self._last_preview_text:
+                update_synthesis_status(self.synthesis_node, f"✍️  {preview}▌")
+                self.live.update(self.board_panel)
+                self._last_preview_text = preview
+
+            self._last_stream_update_chars = len(self.synthesis_buffer)
+    
+    def _is_low_value_content(self, text: str) -> bool:
+        """
+        Check if content is low-value disclaimer/metadata that shouldn't be shown.
+        Prioritizes showing key analytical content sections.
+        """
+        text_lower = text.lower()
+        
+        # High-value sections that should ALWAYS be shown
+        key_sections = [
+            "executive summary",
+            "key findings",
+            "findings",
+            "recommendations",
+            "business model",
+            "financial metrics",
+            "financial evidence",
+            "valuation",
+            "growth drivers",
+            "risks",
+            "competitive advantages",
+            "segments",
+            "profitability",
+        ]
+        
+        # Check if this is part of a key section
+        for section in key_sections:
+            if section in text_lower:
+                return False  # This is valuable content
+        
+        # Low-value phrases that indicate metadata/disclaimers
+        low_value_phrases = [
+            "not investment advice",
+            "past performance",
+            "disclaimer",
+            "methodology",
+            "data source",
+            "confidential",
+            "analyst output",
+            "is intended",
+            "should not",
+            "seek professional advice",
+            "for informational purposes",
+            "not a substitute",
+            "verify independently",
+        ]
+        
+        return any(phrase in text_lower for phrase in low_value_phrases)
 
 async def execute_research(query: str, console: Console) -> Jasperstate:
-    # Setup Live display with initial empty board
-    # Initialize with default status for immediate visual feedback
-    with Live(render_mission_board([], "[PLANNING] Initializing research engine..."), refresh_per_second=10, console=console) as live:
-        
-        # Initialize Logger with Live reference
-        logger = RichLogger(live)
+    # Build the persistent board ONCE (never rebuilt)
+    board_panel, planning_node, execution_node, synthesis_node = build_persistent_board()
+    
+    # Initialize planning node with startup message
+    update_phase_node(planning_node, status_text="🚀 Initializing research engine...")
+    
+    with Live(board_panel, refresh_per_second=10, console=console) as live:
+        # Initialize Logger with persistent board context
+        board_context = {
+            "live": live,
+            "board_panel": board_panel,
+            "planning_node": planning_node,
+            "execution_node": execution_node,
+            "synthesis_node": synthesis_node
+        }
+        logger = RichLogger(board_context)
         
         # Reuse module-level LLM singleton — avoids rebuilding the connection pool
         llm = get_llm_singleton(temperature=0)

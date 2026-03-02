@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any, List, Literal
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from .. import __version__
 
@@ -66,7 +66,7 @@ class FinalReport(BaseModel):
     # Metadata
     query: str = Field(..., description="Original user query")
     report_mode: ReportMode = Field(default=ReportMode.GENERAL, description="The inferred analytical mode of the report")
-    timestamp: datetime = Field(default_factory=datetime.utcnow, description="Report generation timestamp (UTC)")
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="Report generation timestamp (UTC)")
     version: str = Field(default=__version__, description="Jasper version at report generation time")
     
     # Data sourcing

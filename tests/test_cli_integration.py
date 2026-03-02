@@ -13,7 +13,7 @@ def test_package_installation():
     try:
         import jasper
         assert hasattr(jasper, '__version__')
-        assert jasper.__version__ == "1.0.9"
+        assert jasper.__version__ == "1.1.0"
         print("   ✅ Package installed: jasper v1.1.0")
         return True
     except Exception as e:

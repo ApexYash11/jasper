@@ -80,44 +80,57 @@ body {
 table {
     width: 100%;
     border-collapse: collapse;
-    margin-bottom: 15pt;
-    table-layout: fixed;
+    margin-bottom: 12pt;
+    margin-top: 8pt;
+    table-layout: auto;
+    font-size: 8pt;
+    max-width: 100%;
 }
 
 th {
-    background-color: #edf2f7;
-    color: #2d3748;
+    background-color: #2d3748;
+    color: #ffffff;
     text-align: left;
-    padding: 6pt;
-    border: 0.5pt solid #cbd5e0;
+    padding: 6pt 5pt;
+    border: 0.5pt solid #1a202c;
     font-weight: bold;
-    font-size: 8.5pt;
+    font-size: 8pt;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    white-space: normal;
+    min-width: 40pt;
 }
 
 td {
-    padding: 5pt 6pt;
+    padding: 5pt 5pt;
     border: 0.5pt solid #cbd5e0;
-    font-size: 8.5pt;
+    font-size: 8pt;
     vertical-align: top;
-    word-wrap: break-word;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    white-space: normal;
+    line-height: 1.3;
+    min-width: 35pt;
 }
 
-/* Right-align numeric columns for better readability */
-th:nth-child(3),
-th:nth-child(4),
-th:nth-child(5),
-th:nth-child(6),
-td:nth-child(3),
-td:nth-child(4),
-td:nth-child(5),
-td:nth-child(6) {
+/* Right-align numeric columns (3+ usually) */
+td:nth-child(n+3) {
     text-align: right;
     font-family: 'Courier New', monospace;
-    font-weight: 500;
+    font-weight: 400;
 }
 
+th:nth-child(n+3) {
+    text-align: right;
+}
+
+/* Alternate row colors for readability */
 tr:nth-child(even) {
-    background-color: #f8fafc;
+    background-color: #f7fafc;
+}
+
+tr:nth-child(odd) {
+    background-color: #ffffff;
 }
 
 /* --- Forensic Sections --- */
@@ -200,26 +213,41 @@ tr:nth-child(even) {
 .synthesis-content table {
     width: 100%;
     border-collapse: collapse;
-    margin: 10pt 0;
-    font-size: 8.5pt;
-}
-
-.synthesis-content table th,
-.synthesis-content table td {
-    border: 0.5pt solid #cbd5e0;
-    padding: 5pt 6pt;
-    text-align: right;
+    margin: 12pt 0;
+    font-size: 8pt;
+    table-layout: auto;
+    max-width: 100%;
+    display: table;
 }
 
 .synthesis-content table th {
-    background-color: #edf2f7;
+    background-color: #2d3748;
+    color: #ffffff;
     font-weight: bold;
-    color: #2d3748;
+    border: 0.5pt solid #1a202c;
+    padding: 6pt 5pt;
+    text-align: left;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    white-space: normal;
+    min-width: 40pt;
 }
 
 .synthesis-content table td {
     background-color: #ffffff;
     font-weight: normal;
+    border: 0.5pt solid #cbd5e0;
+    padding: 5pt 5pt;
+    text-align: right;
+    line-height: 1.3;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    white-space: normal;
+    min-width: 35pt;
+}
+
+.synthesis-content table tr:nth-child(even) {
+    background-color: #f7fafc;
 }
 
 /* --- Utilities --- */

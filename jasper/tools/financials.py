@@ -2,9 +2,8 @@ from typing import Any, List, Dict
 import time
 from .exceptions import DataProviderError
 
-
-class FinancialDataError(Exception):
-    """Custom exception for financial data retrieval errors."""
+# Alias so existing executor code that catches FinancialDataError still works
+FinancialDataError = DataProviderError
 
 
 # ---------------------------------------------------------------------------
@@ -15,6 +14,50 @@ import os as _os
 _CACHE_TTL = int(_os.getenv("JASPER_CACHE_TTL_SECS", "900"))  # 15 min default
 
 _cache: Dict[str, tuple] = {}  # key -> (timestamp, data)
+
+
+# Common exchange-symbol aliases for popular Indian equities.
+_TICKER_ALIASES: Dict[str, str] = {
+    "ICICIBANK": "ICICIBANK.NS",
+    "HDFCBANK": "HDFCBANK.NS",
+    "RELIANCE": "RELIANCE.NS",
+    "INFY": "INFY.NS",
+    "TCS": "TCS.NS",
+    "SBIN": "SBIN.NS",
+    "ITC": "ITC.NS",
+    "LT": "LT.NS",
+}
+
+
+def _ticker_candidates(ticker: str) -> List[str]:
+    """Build ordered symbol candidates for provider lookups."""
+    raw = (ticker or "").strip()
+    if not raw:
+        return []
+
+    # Normalize spaces so "ICICI BANK" can map to ICICIBANK aliases.
+    compact = raw.replace(" ", "")
+    upper = compact.upper()
+
+    candidates: List[str] = []
+
+    def _add(sym: str) -> None:
+        if sym and sym not in candidates:
+            candidates.append(sym)
+
+    _add(raw)
+    if compact != raw:
+        _add(compact)
+
+    alias = _TICKER_ALIASES.get(upper)
+    if alias:
+        _add(alias)
+
+    # Conservative fallback for likely Indian plain symbols lacking an exchange suffix.
+    if "." not in upper and (upper.endswith("BANK") or upper in _TICKER_ALIASES):
+        _add(f"{upper}.NS")
+
+    return candidates
 
 
 def _cache_get(key: str):
@@ -53,20 +96,26 @@ class FinancialDataRouter:
                 return cached
 
         errors = []
+        symbol_candidates = _ticker_candidates(ticker)
+        if not symbol_candidates:
+            raise DataProviderError(f"Invalid ticker '{ticker}' for {label} fetch")
+
         for provider in self.providers:
             method = getattr(provider, method_name, None)
             if method is None:
                 continue
-            try:
-                result = await method(ticker)
-                if use_cache:
-                    _cache_set(cache_key, result)
-                return result
-            except Exception as e:
-                errors.append(f"{type(provider).__name__}: {e}")
+            for symbol in symbol_candidates:
+                try:
+                    result = await method(symbol)
+                    if use_cache:
+                        _cache_set(cache_key, result)
+                    return result
+                except Exception as e:
+                    errors.append(f"{type(provider).__name__}({symbol}): {e}")
 
         raise DataProviderError(
             f"All providers failed to fetch {label} for {ticker}. "
+            f"Tried symbols: {', '.join(symbol_candidates)}. "
             f"Details: {'; '.join(errors)}. "
             f"Verify the ticker is valid (e.g. AAPL, RELIANCE.NS, INFY.NS)."
         )

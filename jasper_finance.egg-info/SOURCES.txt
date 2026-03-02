@@ -28,7 +28,6 @@ jasper/observability/logger.py
 jasper/styles/report_v1.css
 jasper/templates/report.html.jinja
 jasper/tools/__init__.py
-jasper/tools/aplha_vantage.py
 jasper/tools/exceptions.py
 jasper/tools/financials.py
 jasper/tools/providers/alpha_vantage.py
@@ -40,6 +39,7 @@ jasper_finance.egg-info/entry_points.txt
 jasper_finance.egg-info/requires.txt
 jasper_finance.egg-info/top_level.txt
 tests/test_cli_integration.py
+tests/test_critical_fixes.py
 tests/test_edge_case_fixes.py
 tests/test_package.py
 tests/test_pdf_export.py

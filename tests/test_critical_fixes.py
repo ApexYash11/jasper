@@ -67,9 +67,24 @@ class TestLogger:
     def test_rich_logger_overrides_correctly(self, capsys):
         """RichLogger should update Live panel, not print."""
         from jasper.cli.main import RichLogger
+        from jasper.cli.interface import build_persistent_board
+        
+        # Create the persistent board
+        board_panel, planning_node, execution_node, synthesis_node = build_persistent_board()
+        
+        # Create mock Live
         live_mock = MagicMock()
         live_mock.update = MagicMock()
-        rl = RichLogger(live=live_mock)
+        
+        # Create RichLogger with board context
+        board_context = {
+            "live": live_mock,
+            "board_panel": board_panel,
+            "planning_node": planning_node,
+            "execution_node": execution_node,
+            "synthesis_node": synthesis_node
+        }
+        rl = RichLogger(board_context)
         rl.log("PLANNER_STARTED", {})
         captured = capsys.readouterr()
         assert captured.out == "", "RichLogger must not print to stdout"
@@ -256,6 +271,31 @@ class TestFinancialDataRouter:
         router = FinancialDataRouter(providers=[p1, p2])
         result = await router.fetch_balance_sheet("AAPL")
         assert result[0]["fiscalDateEnding"] == "2024"
+
+    @pytest.mark.asyncio
+    async def test_indian_ticker_alias_fallback_to_nse(self):
+        """Plain ICICIBANK should retry with ICICIBANK.NS and succeed."""
+        from jasper.tools.financials import FinancialDataRouter
+
+        p1 = MagicMock()
+        p1.income_statement = AsyncMock(side_effect=Exception("provider fail"))
+
+        seen = []
+
+        async def mock_income(symbol):
+            seen.append(symbol)
+            if symbol == "ICICIBANK.NS":
+                return [{"fiscalDateEnding": "2024"}]
+            raise Exception("symbol not found")
+
+        p2 = MagicMock()
+        p2.income_statement = mock_income
+
+        router = FinancialDataRouter(providers=[p1, p2])
+        result = await router.fetch_income_statement("ICICIBANK")
+
+        assert result[0]["fiscalDateEnding"] == "2024"
+        assert "ICICIBANK.NS" in seen
 
 
 # ─────────────────────────────────────────────

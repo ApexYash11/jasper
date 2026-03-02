@@ -169,9 +169,10 @@ def compile_html_to_pdf(html_content: str, output_path: str) -> str:
         try:
             # Suppress WeasyPrint loggers and standard error streams (GTK+ missing on Windows)
             logging.getLogger("weasyprint").setLevel(logging.CRITICAL)
-            with contextlib.redirect_stdout(open(os.devnull, "w")), contextlib.redirect_stderr(open(os.devnull, "w")):
-                from weasyprint import HTML
-                HTML(string=html_content).write_pdf(target=str(pdf_path))
+            with open(os.devnull, "w") as devnull_out, open(os.devnull, "w") as devnull_err:
+                with contextlib.redirect_stdout(devnull_out), contextlib.redirect_stderr(devnull_err):
+                    from weasyprint import HTML
+                    HTML(string=html_content).write_pdf(target=str(pdf_path))
             logger.info(f"PDF successfully rendered using WeasyPrint: {pdf_path}")
             return str(pdf_path.resolve())
         finally:

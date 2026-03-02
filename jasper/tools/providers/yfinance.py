@@ -42,7 +42,7 @@ class YFinanceClient:
     async def income_statement(self, ticker: str) -> List[Dict]:
         """Fetch income statement data from yfinance (non-blocking)."""
         try:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             stock = await loop.run_in_executor(None, yf.Ticker, ticker)
             # Use current API attr; fall back to legacy alias if needed
             quarterly = await loop.run_in_executor(
@@ -83,7 +83,7 @@ class YFinanceClient:
     async def balance_sheet(self, ticker: str) -> List[Dict]:
         """Fetch balance sheet data from yfinance (non-blocking)."""
         try:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             stock = await loop.run_in_executor(None, yf.Ticker, ticker)
             balance = await loop.run_in_executor(
                 None, lambda: stock.quarterly_balance_sheet
@@ -136,7 +136,7 @@ class YFinanceClient:
     async def cash_flow(self, ticker: str) -> List[Dict]:
         """Fetch quarterly cash flow statement from yfinance (non-blocking)."""
         try:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             stock = await loop.run_in_executor(None, yf.Ticker, ticker)
             cf = await loop.run_in_executor(
                 None,
@@ -191,12 +191,24 @@ class YFinanceClient:
     async def realtime_quote(self, ticker: str) -> Dict:
         """Fetch real-time quote and key valuation metrics from yfinance (non-blocking)."""
         try:
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             stock = await loop.run_in_executor(None, yf.Ticker, ticker)
             info = await loop.run_in_executor(None, lambda: stock.info)
 
             if not info or not isinstance(info, dict):
                 raise DataProviderError(f"No quote/info data available for {ticker}")
+
+            # Some invalid symbols return a dict-shaped payload with nearly all fields missing.
+            # Treat this as a provider failure so router-level symbol fallback can continue.
+            critical_markers = [
+                info.get("currentPrice"),
+                info.get("regularMarketPrice"),
+                info.get("longName"),
+                info.get("shortName"),
+                info.get("marketCap"),
+            ]
+            if all(v in (None, "", "N/A") for v in critical_markers):
+                raise DataProviderError(f"No actionable quote fields for {ticker}")
 
             def _get(key: str, fallback: str = "N/A") -> str:
                 val = info.get(key)
@@ -208,7 +220,7 @@ class YFinanceClient:
                 "ticker": ticker,
                 "name": _get("longName"),
                 "sector": _get("sector"),
-                "currentPrice": _get("currentPrice"),
+                "currentPrice": _get("currentPrice", fallback=_get("regularMarketPrice")),
                 "previousClose": _get("previousClose"),
                 "marketCap": _get("marketCap"),
                 "peRatioTTM": _get("trailingPE"),
