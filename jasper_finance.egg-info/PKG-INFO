@@ -413,7 +413,7 @@ if report:
 | --- | --- | --- |
 | `OPENROUTER_API_KEY` | *(required)* | Your OpenRouter API key |
 | `ALPHA_VANTAGE_API_KEY` | `demo` | Alpha Vantage key (demo = IBM only) |
-| `OPENROUTER_MODEL` | `stepfun/step-3.5-flash:free` | LLM model override |
+| `OPENROUTER_MODEL` | `google/gemini-2.0-flash-exp:free` | LLM model override |
 | `JASPER_CACHE_TTL_SECS` | `900` | API response cache TTL in seconds |
 
 ---

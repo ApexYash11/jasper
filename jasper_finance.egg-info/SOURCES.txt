@@ -41,7 +41,9 @@ jasper_finance.egg-info/top_level.txt
 tests/test_cli_integration.py
 tests/test_critical_fixes.py
 tests/test_edge_case_fixes.py
+tests/test_integration_fixes.py
 tests/test_package.py
 tests/test_pdf_export.py
 tests/test_pdf_generation.py
+tests/test_table_parsing.py
 tests/test_v0_1_0.py
