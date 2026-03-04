@@ -1,4 +1,5 @@
 from typing import Any, List, Dict
+import os
 import time
 from .exceptions import DataProviderError
 
@@ -10,8 +11,7 @@ FinancialDataError = DataProviderError
 # In-memory TTL cache — avoids redundant API calls within/across sessions
 # Default TTL: 15 minutes (configurable via env var JASPER_CACHE_TTL_SECS)
 # ---------------------------------------------------------------------------
-import os as _os
-_CACHE_TTL = int(_os.getenv("JASPER_CACHE_TTL_SECS", "900"))  # 15 min default
+_CACHE_TTL = int(os.getenv("JASPER_CACHE_TTL_SECS", "900"))  # 15 min default
 
 _cache: Dict[str, tuple] = {}  # key -> (timestamp, data)
 

@@ -124,7 +124,7 @@ class JasperController:
             try:
                 s = str(obj)
                 return s[:max_len] + "..." if len(s) > max_len else s
-            except Exception as e:
+            except Exception:
                 return f"<non-serializable: {type(obj).__name__}>"
         
         for task in state.plan:

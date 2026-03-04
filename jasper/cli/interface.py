@@ -243,9 +243,6 @@ def _fix_markdown_tables(text: str) -> str:
     table_buffer = []
     
     # Regex for financial data: $1.2B, $1,234.56, 45.2%, etc.
-    FINANCIAL_PATTERN = re.compile(
-        r'\$[\d,]+\.?\d*[BKM]?|\d+\.?\d*%|\d+\.\d+x'
-    )
     
     for line_idx, line in enumerate(lines):
         if not line.strip().startswith('|'):
@@ -260,7 +257,7 @@ def _fix_markdown_tables(text: str) -> str:
                     for row_type, cells in table_buffer:
                         result.append('| ' + ' | '.join(cells) + ' |')
                 in_table = False
-                in_incomplete_table = False
+
                 table_buffer = []
                 num_columns = None
             result.append(line)
@@ -489,7 +486,7 @@ def render_mission_board(planning_tasks=None, planning_status="", execution_task
     if planning_status or planning_tasks:
         planning_tree = tree.add(f"[bold {THEME['Accent']}]▸ PLANNING[/bold {THEME['Accent']}]")
         if planning_status:
-            planning_tree.add(Text(planning_status, style=f"bold white"))
+            planning_tree.add(Text(planning_status, style="bold white"))
         
         for task in planning_tasks:
             status = task.get("status", "pending")
@@ -522,7 +519,7 @@ def render_mission_board(planning_tasks=None, planning_status="", execution_task
     if execution_status or execution_tasks:
         execution_tree = tree.add(f"[bold {THEME['Accent']}]▸ EXECUTION[/bold {THEME['Accent']}]")
         if execution_status:
-            execution_tree.add(Text(execution_status, style=f"bold white"))
+            execution_tree.add(Text(execution_status, style="bold white"))
         
         for task in execution_tasks:
             status = task.get("status", "pending")
@@ -554,7 +551,7 @@ def render_mission_board(planning_tasks=None, planning_status="", execution_task
     # === SYNTHESIS PHASE ===
     if synthesis_status:
         synthesis_tree = tree.add(f"[bold {THEME['Accent']}]▸ SYNTHESIS[/bold {THEME['Accent']}]")
-        synthesis_tree.add(Text(synthesis_status, style=f"bold white"))
+        synthesis_tree.add(Text(synthesis_status, style="bold white"))
                 
     return Panel(
         tree,

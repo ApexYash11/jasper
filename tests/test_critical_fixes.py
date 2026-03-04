@@ -14,14 +14,6 @@ Tests cover:
   - PDF template uses conditional status classes (template)
 """
 
-import asyncio
-import io
-import json
-import os
-import sys
-import tempfile
-from unittest.mock import AsyncMock, MagicMock, patch, call
-
 import pytest
 
 

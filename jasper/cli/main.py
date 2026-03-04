@@ -1,7 +1,6 @@
 import typer
 import asyncio
 import os
-import json
 import time
 from datetime import datetime
 from typing import Optional
@@ -26,7 +25,7 @@ from ..export.pdf import export_report_to_pdf, export_report_html
 
 # Import UI components
 from .interface import (
-    render_banner, render_mission_board, render_final_report, render_forensic_report,
+    render_banner, render_final_report, render_forensic_report,
     build_persistent_board, update_phase_node, append_task_to_node, update_synthesis_status
 )
 from ..core.config import THEME
