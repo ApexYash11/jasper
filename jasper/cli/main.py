@@ -86,6 +86,7 @@ class RichLogger(SessionLogger):
     """
     Logger that manages persistent mission board with 3 phases: PLANNING → EXECUTION → SYNTHESIS
     Board is built ONCE and never rebuilt; nodes are appended to in-place.
+    Uses debounced updates to avoid rendering artifacts from excessive Live widget refreshes.
     """
     def __init__(self, board_context):
         super().__init__()
@@ -107,6 +108,18 @@ class RichLogger(SessionLogger):
         # Keep streaming UI concise: never show full generated output in-flight
         self._preview_char_limit = 160
         self._preview_update_every_chars = 120
+        
+        # Debouncing: track last update time to avoid excessive Live refreshes
+        self._last_update_time = 0
+        self._min_update_interval = 0.05  # 50ms minimum between Live updates
+
+    def _should_update_live(self) -> bool:
+        """Check if enough time has passed since last Live update."""
+        elapsed = time.perf_counter() - self._last_update_time
+        if elapsed >= self._min_update_interval:
+            self._last_update_time = time.perf_counter()
+            return True
+        return False
 
     def log(self, event_type: str, payload: dict):
         """Log events and update persistent board."""
@@ -114,7 +127,8 @@ class RichLogger(SessionLogger):
         if event_type == "PLANNER_STARTED":
             status_line = "🔍 Analyzing query and requirements..."
             update_phase_node(self.planning_node, status_text=status_line)
-            self.live.update(self.board_panel)
+            if self._should_update_live():
+                self.live.update(self.board_panel)
 
         elif event_type == "PLAN_CREATED":
             # Initialize planning tasks
@@ -136,7 +150,8 @@ class RichLogger(SessionLogger):
                 }
                 for desc in self.planning_tasks.keys()
             ])
-            self.live.update(self.board_panel)
+            if self._should_update_live():
+                self.live.update(self.board_panel)
 
         elif event_type == "TASK_STARTED":
             desc = payload.get("description")
@@ -149,7 +164,8 @@ class RichLogger(SessionLogger):
                 self.execution_tasks[desc] = {"status": "running", "detail": ""}
             
             update_synthesis_status(self.execution_node, "⚙️  Fetching live market data...")
-            self.live.update(self.board_panel)
+            if self._should_update_live():
+                self.live.update(self.board_panel)
 
         elif event_type == "TASK_COMPLETED":
             desc = payload.get("description")
@@ -171,34 +187,42 @@ class RichLogger(SessionLogger):
                     append_task_to_node(self.execution_node, f"✖ {desc}{duration_text}", status="failed")
                     update_synthesis_status(self.execution_node, f"⚠️ Failed: {desc[:60]}{duration_text}")
             
+            # Force update for task completion (always show immediately)
             self.live.update(self.board_panel)
+            self._last_update_time = time.perf_counter()
 
         elif event_type == "ENTITY_EXTRACTION_STARTED":
             update_synthesis_status(self.planning_node, "🔍 Identifying entities & intent...")
-            self.live.update(self.board_panel)
+            if self._should_update_live():
+                self.live.update(self.board_panel)
 
         elif event_type == "MODE_INFERRED":
             mode = payload.get("mode", "").upper()
             update_synthesis_status(self.planning_node, f"📋 Mode: {mode} — building task plan...")
-            self.live.update(self.board_panel)
+            if self._should_update_live():
+                self.live.update(self.board_panel)
 
         elif event_type == "VALIDATION_STARTED":
             update_synthesis_status(self.synthesis_node, "✓ Verifying data integrity...")
-            self.live.update(self.board_panel)
+            if self._should_update_live():
+                self.live.update(self.board_panel)
 
         elif event_type == "SYNTHESIS_STARTED":
             update_synthesis_status(self.synthesis_node, "✍️  Compiling executive report...")
-            self.live.update(self.board_panel)
+            if self._should_update_live():
+                self.live.update(self.board_panel)
 
         elif event_type == "REFLECTION_STARTED":
             update_synthesis_status(self.execution_node, "🔄 Checking for recoverable failures...")
-            self.live.update(self.board_panel)
+            if self._should_update_live():
+                self.live.update(self.board_panel)
 
         elif event_type == "REFLECTOR_RETRYING":
             desc = payload.get("description", "task")[:50]
             attempt = payload.get("attempt", 1)
             update_synthesis_status(self.execution_node, f"🔁 Retry {attempt}: {desc}...")
-            self.live.update(self.board_panel)
+            if self._should_update_live():
+                self.live.update(self.board_panel)
 
         elif event_type == "REFLECTOR_COMPLETED":
             recovered = payload.get("recovered", 0)
@@ -210,7 +234,8 @@ class RichLogger(SessionLogger):
             else:
                 status = "✅ All tasks nominal"
             update_synthesis_status(self.execution_node, status)
-            self.live.update(self.board_panel)
+            if self._should_update_live():
+                self.live.update(self.board_panel)
 
         elif event_type == "VALIDATION_COMPLETED":
             conf = payload.get("confidence", 0)
@@ -220,13 +245,16 @@ class RichLogger(SessionLogger):
             else:
                 status = f"❌ Validation failed (confidence: {conf:.0%})"
             update_synthesis_status(self.synthesis_node, status)
+            # Force update for validation completion (always show immediately)
             self.live.update(self.board_panel)
+            self._last_update_time = time.perf_counter()
 
     def on_synthesis_token(self, token: str) -> None:
         """
         Called by synthesizer for each streamed token.
         Streams a SHORT preview only (never full in-flight output).
         Updates at sentence boundaries or periodic character intervals.
+        Uses debouncing to avoid overwhelming the Live widget.
         """
         self.synthesis_buffer += token
         
@@ -240,7 +268,7 @@ class RichLogger(SessionLogger):
         elif len(self.synthesis_buffer) - self._last_stream_update_chars >= self._preview_update_every_chars:
             should_update = True
         
-        if should_update:
+        if should_update and self._should_update_live():
             # Show short sanitized preview - avoid echoing full model output
             normalized = " ".join(self.synthesis_buffer.split()).strip()
             if not normalized:
@@ -314,7 +342,7 @@ async def execute_research(query: str, console: Console) -> Jasperstate:
     # Initialize planning node with startup message
     update_phase_node(planning_node, status_text="🚀 Initializing research engine...")
     
-    with Live(board_panel, refresh_per_second=10, console=console) as live:
+    with Live(board_panel, refresh_per_second=4, console=console) as live:
         # Initialize Logger with persistent board context
         board_context = {
             "live": live,
