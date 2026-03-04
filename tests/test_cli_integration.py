@@ -109,7 +109,6 @@ def test_agent_modules():
         from jasper.agent.validator import validator
         from jasper.agent.synthesizer import Synthesizer
         from jasper.agent.entity_extractor import EntityExtractor
-        from jasper.agent.reflector import Reflector
 
         assert callable(Planner), "Planner must be a class"
         assert callable(Executor), "Executor must be a class"

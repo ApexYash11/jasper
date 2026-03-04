@@ -4,8 +4,7 @@ Tests the entire flow with realistic financial data query.
 """
 
 import pytest
-import asyncio
-from unittest.mock import Mock, patch, AsyncMock
+from unittest.mock import Mock
 from jasper.cli.interface import (
     _fix_markdown_tables,
     _format_cli_markdown,
@@ -191,7 +190,6 @@ class TestIntegrationSynthesisFiltering:
         logger = RichLogger(board_context)
         
         # Feed tokens without sentence ending - should not update immediately
-        update_count = mock_live.update.call_count
         logger.on_synthesis_token("Apple")
         logger.on_synthesis_token(" shows")
         logger.on_synthesis_token(" strong")

@@ -20,7 +20,7 @@ class TestTableParsingBasic:
         output = _fix_markdown_tables(input_text)
         
         # Should have 4 lines (header, separator, 2 data rows)
-        lines = [l for l in output.split('\n') if l.strip().startswith('|')]
+        lines = [line for line in output.split('\n') if line.strip().startswith('|')]
         assert len(lines) == 4
         assert '| Metric | Value |' in output
         assert '| Revenue | $130.5B |' in output
@@ -42,7 +42,7 @@ class TestTableParsingBasic:
 | Growth | 15% | 20% |"""
         
         output = _fix_markdown_tables(input_text)
-        lines = [l for l in output.split('\n') if l.strip().startswith('|')]
+        lines = [line for line in output.split('\n') if line.strip().startswith('|')]
         assert len(lines) == 4
 
 
@@ -56,7 +56,7 @@ class TestTableParsingCompressed:
 | Revenue | $130.5B | | Net Income | $29.9B |"""
         
         output = _fix_markdown_tables(input_text)
-        lines = [l for l in output.split('\n') if l.strip().startswith('|')]
+        lines = [line for line in output.split('\n') if line.strip().startswith('|')]
         
         # Should split into two rows (header, separator, 2 data rows)
         assert len(lines) == 4
@@ -70,7 +70,7 @@ class TestTableParsingCompressed:
 | Rev | $1B | | Inc | $2B | | Margin | 30% |"""
         
         output = _fix_markdown_tables(input_text)
-        lines = [l for l in output.split('\n') if l.strip().startswith('|')]
+        lines = [line for line in output.split('\n') if line.strip().startswith('|')]
         
         # Should split into 3 rows + header + separator
         assert len(lines) >= 5
@@ -150,7 +150,7 @@ class TestTableParsingEdgeCases:
 | Net Income | $20B |"""
         
         output = _fix_markdown_tables(input_text)
-        lines = [l for l in output.split('\n') if l.strip().startswith('|')]
+        lines = [line for line in output.split('\n') if line.strip().startswith('|')]
         
         # Should preserve structure
         assert len(lines) >= 4
@@ -208,7 +208,7 @@ class TestTableParsingMalformed:
         output = _fix_markdown_tables(input_text)
         
         # Should normalize separator to match column count
-        lines = [l for l in output.split('\n') if l.strip().startswith('|')]
+        lines = [line for line in output.split('\n') if line.strip().startswith('|')]
         assert len(lines) >= 3
     
     def test_column_count_inference(self):
@@ -218,7 +218,7 @@ class TestTableParsingMalformed:
 | 1 | 2 | 3 | | 4 | 5 | 6 |"""
         
         output = _fix_markdown_tables(input_text)
-        lines = [l for l in output.split('\n') if l.strip().startswith('|')]
+        lines = [line for line in output.split('\n') if line.strip().startswith('|')]
         
         # Should detect 3 columns and split the compressed row
         assert len(lines) >= 4

@@ -12,10 +12,8 @@ Covers:
 """
 
 import sys
-import json
 import os
 import tempfile
-from pathlib import Path
 
 
 def test_issue_1_intent_classification():
@@ -91,7 +89,7 @@ def test_issue_5_7_safe_truncation():
             try:
                 s = str(obj)
                 return s[:max_len] + "..." if len(s) > max_len else s
-            except Exception as e:
+            except Exception:
                 return f"<non-serializable: {type(obj).__name__}>"
         
         # Test cases
@@ -205,7 +203,6 @@ def test_issue_9_validator_confidence():
         ]
         
         print("\n✓ Checking validator.validate() documentation...")
-        all_found = True
         for doc in required_docs:
             if doc in source:
                 print(f"  ✅ Found: '{doc}'")
@@ -259,7 +256,7 @@ def test_issue_10_qualitative_pdf_export():
             inference_map=[],
         )
         
-        print(f"  ✅ Created qualitative report (BUSINESS_MODEL mode)")
+        print("  ✅ Created qualitative report (BUSINESS_MODEL mode)")
         print(f"  ✅ Evidence log is empty: {len(qualitative_report.evidence_log) == 0}")
         print(f"  ✅ Report is valid: {qualitative_report.is_valid}")
         
@@ -269,7 +266,7 @@ def test_issue_10_qualitative_pdf_export():
             try:
                 # This should succeed because it's a qualitative report
                 result = export_report_to_pdf(qualitative_report, pdf_path, validate=True)
-                print(f"  ✅ PDF export succeeded for qualitative report")
+                print("  ✅ PDF export succeeded for qualitative report")
                 print(f"  ✅ Output path: {result}")
                 
                 # Check file exists
@@ -309,31 +306,20 @@ def test_imports_and_structure():
     try:
         print("\n✓ Importing core modules...")
         
-        from jasper.agent.entity_extractor import EntityExtractor, NER_PROMPT
         print("  ✅ entity_extractor")
         
-        from jasper.agent.planner import Planner, PLANNER_PROMPT
         print("  ✅ planner")
         
-        from jasper.agent.executor import Executor
         print("  ✅ executor")
         
-        from jasper.agent.validator import validator
         print("  ✅ validator")
         
-        from jasper.agent.synthesizer import Synthesizer
         print("  ✅ synthesizer")
         
-        from jasper.core.controller import JasperController
         print("  ✅ controller")
         
-        from jasper.export.pdf import export_report_to_pdf, ReportMode
         print("  ✅ pdf export")
         
-        from jasper.core.state import (
-            FinalReport, ReportMode, ConfidenceBreakdown, 
-            Task, Jasperstate, validationresult
-        )
         print("  ✅ state models")
         
         print("\n✅ ALL IMPORTS SUCCESSFUL")

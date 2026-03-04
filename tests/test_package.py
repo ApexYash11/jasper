@@ -4,7 +4,6 @@ Jasper Finance - Package Test Suite
 Tests all core modules to verify the package is working correctly.
 """
 
-import sys
 
 print("=" * 60)
 print("🧪 JASPER FINANCE - PACKAGE TEST SUITE")

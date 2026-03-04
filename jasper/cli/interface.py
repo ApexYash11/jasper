@@ -239,7 +239,6 @@ def _fix_markdown_tables(text: str) -> str:
     result = []
     num_columns = None
     in_table = False
-    in_incomplete_table = False
     table_buffer = []
     
     # Regex for financial data: $1.2B, $1,234.56, 45.2%, etc.
