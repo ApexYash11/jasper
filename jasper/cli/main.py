@@ -112,6 +112,14 @@ class RichLogger(SessionLogger):
         self.execution_node = board_context["execution_node"]
         self.synthesis_node = board_context["synthesis_node"]
         
+        # Tier 2 (print mode) support
+        self.console = board_context.get("console")
+        self.is_live = self.live is not None
+        self.synthesis_print_buffer = ""
+        self._last_synthesis_print = 0.0
+        self._synthesis_dot_count = 0
+        self._synthesis_started_printed = False  # Guard against duplicate prints
+        
         # Track task data for reference
         self.planning_tasks = {}  # {task_desc: task_obj}
         self.execution_tasks = {}
@@ -130,7 +138,7 @@ class RichLogger(SessionLogger):
 
     def _should_update_live(self) -> bool:
         """Check if enough time has passed since last Live update."""
-        if self.live is None:
+        if not self.is_live:
             return False
         elapsed = time.perf_counter() - self._last_update_time
         if elapsed >= self._min_update_interval:
@@ -142,12 +150,30 @@ class RichLogger(SessionLogger):
         """Log events and update persistent board."""
         
         if event_type == "PLANNER_STARTED":
+            if not self.is_live:
+                self.console.print(
+                    f"[{THEME['Accent']}][PLANNING][/{THEME['Accent']}] "
+                    f"Analyzing query and requirements..."
+                )
+                return
             status_line = "🔍 Analyzing query and requirements..."
             update_phase_node(self.planning_node, status_text=status_line)
             if self._should_update_live():
                 self.live.update(self.board_panel)
 
         elif event_type == "PLAN_CREATED":
+            if not self.is_live:
+                count = len(payload.get("plan", []))
+                self.console.print(
+                    f"[{THEME['Accent']}][PLANNING][/{THEME['Accent']}] "
+                    f"Decomposing query into {count} sub-tasks..."
+                )
+                for task in payload.get("plan", []):
+                    self.console.print(
+                        f"  [{THEME['Primary Text']}]○[/{THEME['Primary Text']}] "
+                        f"{task.get('description', '')}"
+                    )
+                return
             # Initialize planning tasks
             plan = payload.get("plan", [])
             count = len(plan)
@@ -171,6 +197,13 @@ class RichLogger(SessionLogger):
                 self.live.update(self.board_panel)
 
         elif event_type == "TASK_STARTED":
+            if not self.is_live:
+                desc = payload.get("description", "")
+                self.console.print(
+                    f"[{THEME['Accent']}][EXECUTING][/{THEME['Accent']}] "
+                    f"{desc}"
+                )
+                return
             desc = payload.get("description")
             if desc:
                 self._task_started_at[desc] = time.perf_counter()
@@ -185,6 +218,22 @@ class RichLogger(SessionLogger):
                 self.live.update(self.board_panel)
 
         elif event_type == "TASK_COMPLETED":
+            if not self.is_live:
+                desc = payload.get("description", "")
+                status = payload.get("status", "pending")
+                duration_text = ""
+                if desc in self._task_started_at:
+                    elapsed = max(
+                        0.0, 
+                        time.perf_counter() - self._task_started_at.pop(desc)
+                    )
+                    duration_text = f" ({elapsed:.1f}s)"
+                icon = "✔" if status == "completed" else "✖"
+                color = THEME["Success"] if status == "completed" else THEME["Error"]
+                self.console.print(
+                    f"[{color}]{icon}[/{color}] {desc}{duration_text}"
+                )
+                return
             desc = payload.get("description")
             status = payload.get("status", "pending")
             
@@ -226,11 +275,28 @@ class RichLogger(SessionLogger):
                 self.live.update(self.board_panel)
 
         elif event_type == "SYNTHESIS_STARTED":
+            if not self.is_live:
+                if not self._synthesis_started_printed:
+                    self.console.print(
+                        f"[{THEME['Accent']}][SYNTHESIS][/{THEME['Accent']}] "
+                        f"Compiling executive report",
+                        end=""
+                    )
+                    self._synthesis_started_printed = True
+                self._synthesis_dot_count = 0
+                self._last_synthesis_print = time.perf_counter()
+                return
             update_synthesis_status(self.synthesis_node, "✍️  Compiling executive report...")
             if self._should_update_live():
                 self.live.update(self.board_panel)
 
         elif event_type == "REFLECTION_STARTED":
+            if not self.is_live:
+                self.console.print(
+                    f"[{THEME['Accent']}][REFLECTING][/{THEME['Accent']}] "
+                    f"Checking for recoverable failures..."
+                )
+                return
             update_synthesis_status(self.execution_node, "🔄 Checking for recoverable failures...")
             if self._should_update_live():
                 self.live.update(self.board_panel)
@@ -256,6 +322,20 @@ class RichLogger(SessionLogger):
                 self.live.update(self.board_panel)
 
         elif event_type == "VALIDATION_COMPLETED":
+            if not self.is_live:
+                conf = payload.get("confidence", 0)
+                is_valid = payload.get("is_valid", False)
+                if is_valid:
+                    self.console.print(
+                        f"[{THEME['Success']}][VALID][/{THEME['Success']}] "
+                        f"Confidence: {conf:.0%} — Starting synthesis..."
+                    )
+                else:
+                    self.console.print(
+                        f"[{THEME['Error']}][FAILED][/{THEME['Error']}] "
+                        f"Validation failed (confidence: {conf:.0%})"
+                    )
+                return
             conf = payload.get("confidence", 0)
             is_valid = payload.get("is_valid", False)
             if is_valid:
@@ -275,6 +355,9 @@ class RichLogger(SessionLogger):
         Updates at sentence boundaries or periodic character intervals.
         Uses debouncing to avoid overwhelming the Live widget.
         """
+        if not self.is_live:
+            self._handle_synthesis_print(token)
+            return
         self.synthesis_buffer += token
         
         # Only update UI at safe boundary conditions:
@@ -306,6 +389,31 @@ class RichLogger(SessionLogger):
                 self._last_preview_text = preview
 
             self._last_stream_update_chars = len(self.synthesis_buffer)
+    
+    def _handle_synthesis_print(self, token: str) -> None:
+        """
+        Tier 2 (plain PowerShell) synthesis progress display.
+        Prints dots every 2 seconds to show liveness without 
+        flooding the terminal.
+        """
+        self.synthesis_print_buffer += token
+        
+        # Cap buffer to avoid unbounded growth
+        if len(self.synthesis_print_buffer) > 500:
+            self.synthesis_print_buffer = self.synthesis_print_buffer[-500:]
+        
+        now = time.perf_counter()
+        elapsed = now - self._last_synthesis_print
+        
+        # Print a dot every 2 seconds to show progress
+        if elapsed >= 2.0:
+            self.console.print(".", end="", flush=True)
+            self._synthesis_dot_count += 1
+            self._last_synthesis_print = now
+            
+            # Newline every 20 dots to prevent one very long line
+            if self._synthesis_dot_count % 20 == 0:
+                self.console.print("")
     
     def _is_low_value_content(self, text: str) -> bool:
         """
@@ -394,7 +502,8 @@ async def execute_research(query: str, console: Console) -> Jasperstate:
             "board_panel": board_panel,
             "planning_node": planning_node,
             "execution_node": execution_node,
-            "synthesis_node": synthesis_node
+            "synthesis_node": synthesis_node,
+            "console": console
         }
         logger = RichLogger(board_context)
         
