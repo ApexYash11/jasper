@@ -335,7 +335,8 @@ if __name__ == "__main__":
     
     for test_class in test_classes:
         print(f"\n[{test_class.__name__}]")
-        print(f"  {test_class.__doc__.strip()}")
+        doc = (test_class.__doc__ or "").strip()
+        print(f"  {doc}")
         print()
         
         test_instance = test_class()
