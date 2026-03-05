@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: jasper-finance
-Version: 1.1.1
+Version: 1.1.4
 Summary: Terminal-native autonomous financial research agent with deterministic planning and validation gating.
 Author-email: ApexYash <apex@example.com>
 License: MIT
@@ -70,6 +70,64 @@ Instead of just "chatting," Jasper follows a rigorous 5-stage pipeline:
 
 ---
 
+## 📝 What's New in v1.1.3
+
+### 🐛 Bug Fixes & Stability
+
+- **Exception Hierarchy**: Introduced a cohesive exception model with `JasperError` base class for all custom exceptions (EntityExtractionError, PlannerError, DataFetchError, ValidationError, ConfigurationError, SynthesisError). Enables precise error handling and recovery strategies.
+- **Logger Output Control**: Fixed logger to never print to stdout. All session events are now captured cleanly without terminal pollution. RichLogger correctly updates the Live panel instead.
+- **Version Command**: Now uses `importlib.metadata` instead of parsing `pyproject.toml` directly. Guarantees version consistency across all deployment methods (pip, Docker, executables).
+
+### ✨ New Features & Enhancements
+
+- **Balance Sheet Data**: New `balance_sheet` tool now dispatched by executor. Fetch total assets, liabilities, equity, debt ratios alongside income statements for complete financial picture.
+- **Cash Flow Statements**: New `cash_flow` tool provides operating, investing, and financing cash flows. Critical for understanding liquidity and capital allocation.
+- **Real-time Quotes**: New `realtime_quote` tool fetches live price, market cap, P/E ratio, 52-week range, and trading volume. Always bypasses cache for latest data.
+- **Async Provider Execution**: Both `YFinanceClient` and `AlphaVantageClient` now properly use `asyncio.run_in_executor()` to prevent blocking the event loop. Non-blocking concurrent data fetches.
+- **Smart Fallback Routing**: `FinancialDataRouter` tries Alpha Vantage first, then seamlessly falls back to yfinance. Automatic `.NS` suffix retry for Indian stocks (e.g., plain `RELIANCE` → `RELIANCE.NS`).
+- **In-Memory Response Caching**: API responses cached in-memory with TTL (default 15 minutes, configurable via `JASPER_CACHE_TTL_SECS`). Saves quota on repeated queries. Real-time quotes always bypass cache.
+
+### 🎯 Reliability & Recovery
+
+- **Reflector Retry Loop**: Post-execution reflector now intelligently retries transient failures (timeouts, rate limits, service unavailable) up to configurable `max_retries` times per task before gracefully skipping.
+- **Partial-Success Validation**: Validation gate now explicitly accepts ≥50% task completion rate. Synthesis proceeds with a confidence penalty and visible data-gap caveats. No more hard failures on partial data.
+- **Validator Confidence Breakdown**: Calculates transparency score as: `data_coverage × data_quality × inference_strength`. Penalises missing data automatically.
+- **Task Error Tracking**: All task failures now logged with detailed error messages. Audit trail clearly shows which data sources succeeded/failed.
+
+### 🎨 UI & Export Improvements
+
+- **Conditional PDF Status Badges**: PDF report now uses Jinja2 conditionals to dynamically render status badges based on actual data retrieval results. No more hardcoded "SUCCESS" labels when data is missing.
+- **PDF Context Truncation**: Long synthesis contexts (>10K chars) automatically truncated with a truncation note appended. Prevents LLM context overflow and keeps reports concise.
+- **Cross-Process Report Persistence**: Research reports now automatically persisted to disk as JSON cache. `_load_report_from_disk()` enables session continuity and easy re-export.
+- **Live Streaming Synthesis**: Real-time Rich Live panel updates during synthesis. No blank screens while LLM generates responses.
+
+### 🐍 Developer Experience
+
+- **Public Python API**: New `run_research()` async function and `FinalReport` Pydantic model exported from `jasper` package. Use Jasper programmatically in notebooks, FastAPI routes, or CI pipelines.
+- **Detailed Docstrings**: All agent classes (Planner, Executor, Reflector, Synthesizer, Validator) now have comprehensive docstrings explaining intent, parameters, and return values.
+- **Demo Mode Warning**: When using demo Alpha Vantage key, explicit warning message mentions "IBM" to alert users that demo responses are dummy data, not real market information.
+
+### 🔧 Internal Improvements
+
+- **Entity Extractor**: Improved ticker/company name extraction from complex queries. Better handling of multi-company comparisons.
+- **Context Window Management**: Synthesizer now actively manages context window size to avoid exceeding LLM limits. Graceful truncation with notes.
+- **Executor Task Dispatching**: Unified task dispatch logic. Supports income_statement, balance_sheet, cash_flow, realtime_quote, financial_statement (alias), and key_metrics tools.
+
+### 📊 Data Provider Enhancements
+
+- **Alpha Vantage**: Now properly parses and surfaces both annual and quarterly reports. Better error messages for rate-limited responses and missing data.
+- **yfinance**: Eliminated use of deprecated `quarterly_financials` attribute. Uses modern `quarterly_income_stmt` API exclusively.
+- **Provider Abstraction**: Providers without requested method (e.g., missing balance_sheet) silently skipped instead of erroring out.
+
+### 🧪 Testing
+
+- 16 new comprehensive test suites covering all critical fixes.
+- Full round-trip testing for report save/load persistence.
+- Async provider mocking with proper executor simulation.
+- Conditional template rendering validation via CSS class detection.
+
+---
+
 ## ✨ Key Features
 
 * 🧠 **Autonomous Planning**: Automatically breaks down complex questions into executable sub-tasks with query-intent classification (`quantitative` / `qualitative` / `mixed`).
@@ -119,8 +177,8 @@ chmod +x scripts/build.sh && ./scripts/build.sh
 ### Option 3: Docker (Production)
 
 ```bash
-docker build -t jasper-finance:1.1.1 .
-docker run -it jasper-finance:1.1.1 interactive
+docker build -t jasper-finance:1.1.3 .
+docker run -it jasper-finance:1.1.3 interactive
 ```
 
 ---
@@ -459,4 +517,4 @@ See [LICENSE](LICENSE) for full legal text.
 
 ---
 
-**Built by analysts, for analysts. Stop guessing. Start researching. Jasper Finance v1.1.1**
+**Built by analysts, for analysts. Stop guessing. Start researching. Jasper Finance v1.1.3**

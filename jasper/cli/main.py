@@ -2,6 +2,7 @@ import typer
 import asyncio
 import os
 import time
+import sys
 from datetime import datetime
 from typing import Optional
 from rich.console import Console
@@ -30,7 +31,12 @@ from .interface import (
 )
 from ..core.config import THEME
 
-console = Console()
+# Create console with proper terminal detection
+# Disable ANSI color codes in non-TTY environments (e.g., VS Code integrated terminal)
+_force_terminal = sys.stdout.isatty()
+_force_no_color = not _force_terminal and os.getenv("FORCE_COLOR") != "1"
+console = Console(force_terminal=_force_terminal, no_color=_force_no_color)
+
 app = typer.Typer(
     help="Institutional Financial research agent.",
     no_args_is_help=False
@@ -115,6 +121,8 @@ class RichLogger(SessionLogger):
 
     def _should_update_live(self) -> bool:
         """Check if enough time has passed since last Live update."""
+        if self.live is None:
+            return False
         elapsed = time.perf_counter() - self._last_update_time
         if elapsed >= self._min_update_interval:
             self._last_update_time = time.perf_counter()
@@ -188,8 +196,9 @@ class RichLogger(SessionLogger):
                     update_synthesis_status(self.execution_node, f"⚠️ Failed: {desc[:60]}{duration_text}")
             
             # Force update for task completion (always show immediately)
-            self.live.update(self.board_panel)
-            self._last_update_time = time.perf_counter()
+            if self.live:
+                self.live.update(self.board_panel)
+                self._last_update_time = time.perf_counter()
 
         elif event_type == "ENTITY_EXTRACTION_STARTED":
             update_synthesis_status(self.planning_node, "🔍 Identifying entities & intent...")
@@ -246,8 +255,9 @@ class RichLogger(SessionLogger):
                 status = f"❌ Validation failed (confidence: {conf:.0%})"
             update_synthesis_status(self.synthesis_node, status)
             # Force update for validation completion (always show immediately)
-            self.live.update(self.board_panel)
-            self._last_update_time = time.perf_counter()
+            if self.live:
+                self.live.update(self.board_panel)
+                self._last_update_time = time.perf_counter()
 
     def on_synthesis_token(self, token: str) -> None:
         """
@@ -282,7 +292,8 @@ class RichLogger(SessionLogger):
             # Filter out low-value content (disclaimers, methodology)
             if not self._is_low_value_content(preview) and preview != self._last_preview_text:
                 update_synthesis_status(self.synthesis_node, f"✍️  {preview}▌")
-                self.live.update(self.board_panel)
+                if self.live:
+                    self.live.update(self.board_panel)
                 self._last_preview_text = preview
 
             self._last_stream_update_chars = len(self.synthesis_buffer)
@@ -342,10 +353,21 @@ async def execute_research(query: str, console: Console) -> Jasperstate:
     # Initialize planning node with startup message
     update_phase_node(planning_node, status_text="🚀 Initializing research engine...")
     
-    with Live(board_panel, refresh_per_second=4, console=console) as live:
+    # Only use Live rendering in proper TTY environments
+    # This avoids ANSI escape code artifacts in VS Code integrated terminal
+    use_live = sys.stdout.isatty() and not os.getenv("TERM") == "dumb"
+    
+    if use_live:
+        live_context = Live(board_panel, refresh_per_second=4, console=console)
+    else:
+        # Fallback: simple dummy context that doesn't render live updates
+        from contextlib import nullcontext
+        live_context = nullcontext()
+    
+    with live_context as live:
         # Initialize Logger with persistent board context
         board_context = {
-            "live": live,
+            "live": live if use_live else None,
             "board_panel": board_panel,
             "planning_node": planning_node,
             "execution_node": execution_node,
