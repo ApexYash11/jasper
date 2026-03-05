@@ -387,7 +387,7 @@ def build_persistent_board():
     
     Each node can be appended to independently without rebuilding the entire tree.
     """
-    root_tree = Tree(f"[bold {THEME['Brand']}] MISSION CONTROL[/bold {THEME['Brand']}]", guide_style="dim")
+    root_tree = Tree(f"[bold {THEME['Brand']}] MISSION CONTROL[/bold {THEME['Brand']}]", guide_style="")
     
     # Create three phase sections (persistent tree nodes)
     planning_node = root_tree.add(f"[bold {THEME['Accent']}]▸ PLANNING[/bold {THEME['Accent']}]")
@@ -582,9 +582,8 @@ def render_final_report(body_text, tickers, sources):
     source_value = Text(", ".join(sources), style="bold white")
     header_rows.append(date_label + date_value + source_label + source_value)
     
-    # Group header and add a separator
+    # Group header
     header_group = Group(*header_rows)
-    separator = Rule(style="dim")
     
     # Body: Markdown with table fix
     fixed_body = _format_cli_markdown(body_text)
@@ -593,7 +592,6 @@ def render_final_report(body_text, tickers, sources):
     # Combine everything into a Group
     content_group = Group(
         header_group,
-        separator,
         Text(""), # Padding
         body
     )
@@ -692,6 +690,5 @@ def render_forensic_report(report: FinalReport):
         evidence_table,
         synthesis_panel,
         audit_table,
-        Rule(style="dim"),
         Text(f"Jasper v{report.version} | Deterministic Forensic Artifact", justify="center", style="dim")
     )

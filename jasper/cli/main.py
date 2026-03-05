@@ -107,11 +107,11 @@ class RichLogger(SessionLogger):
 
         # Keep streaming UI concise: never show full generated output in-flight
         self._preview_char_limit = 160
-        self._preview_update_every_chars = 120
+        self._preview_update_every_chars = 300
         
         # Debouncing: track last update time to avoid excessive Live refreshes
         self._last_update_time = 0
-        self._min_update_interval = 0.05  # 50ms minimum between Live updates
+        self._min_update_interval = 0.2  # 200ms minimum between Live updates
 
     def _should_update_live(self) -> bool:
         """Check if enough time has passed since last Live update."""
