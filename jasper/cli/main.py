@@ -3,6 +3,7 @@ import asyncio
 import os
 import time
 import sys
+import platform
 from datetime import datetime
 from typing import Optional
 from rich.console import Console
@@ -31,11 +32,19 @@ from .interface import (
 )
 from ..core.config import THEME
 
-# Create console with proper terminal detection
-# Disable ANSI color codes in non-TTY environments (e.g., VS Code integrated terminal)
-_force_terminal = sys.stdout.isatty()
-_force_no_color = not _force_terminal and os.getenv("FORCE_COLOR") != "1"
-console = Console(force_terminal=_force_terminal, no_color=_force_no_color)
+# Create console with Windows-aware terminal detection
+# Handle Windows PowerShell limitations and different terminal emulators
+_is_windows = platform.system() == "Windows"
+_is_windows_terminal = bool(os.getenv("WT_SESSION"))
+_force_terminal = sys.stdout.isatty() and (
+    not _is_windows or _is_windows_terminal or bool(os.getenv("ConEmuPID"))
+)
+_force_no_color = not _force_terminal
+console = Console(
+    force_terminal=_force_terminal,
+    no_color=_force_no_color,
+    legacy_windows=_is_windows and not _is_windows_terminal,
+)
 
 app = typer.Typer(
     help="Institutional Financial research agent.",
@@ -353,12 +362,26 @@ async def execute_research(query: str, console: Console) -> Jasperstate:
     # Initialize planning node with startup message
     update_phase_node(planning_node, status_text="🚀 Initializing research engine...")
     
-    # Only use Live rendering in proper TTY environments
-    # This avoids ANSI escape code artifacts in VS Code integrated terminal
-    use_live = sys.stdout.isatty() and not os.getenv("TERM") == "dumb"
+    # Windows-aware Live rendering detection
+    # Plain PowerShell.exe (TERM=None) cannot handle Rich Live rendering
+    # Only enable in Windows Terminal or ConEmu
+    is_windows = platform.system() == "Windows"
+    is_windows_terminal = bool(os.getenv("WT_SESSION"))
+    is_vscode = os.getenv("TERM_PROGRAM") == "vscode"
+    is_conemu = bool(os.getenv("ConEmuPID"))
+    is_dumb = os.getenv("TERM") == "dumb"
+    is_tty = sys.stdout.isatty()
+    
+    if is_windows:
+        # On Windows, only enable Live in Windows Terminal or ConEmu
+        # Plain PowerShell.exe cannot handle Rich Live rendering
+        use_live = is_tty and (is_windows_terminal or is_conemu) and not is_vscode
+    else:
+        # On macOS/Linux, trust isatty() but exclude VS Code and dumb terminals
+        use_live = is_tty and not is_vscode and not is_dumb
     
     if use_live:
-        live_context = Live(board_panel, refresh_per_second=4, console=console)
+        live_context = Live(board_panel, refresh_per_second=2, console=console)
     else:
         # Fallback: simple dummy context that doesn't render live updates
         from contextlib import nullcontext

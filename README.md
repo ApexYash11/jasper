@@ -28,6 +28,14 @@ Instead of just "chatting," Jasper follows a rigorous 5-stage pipeline:
 
 ---
 
+## 📝 What's New in v1.1.5
+
+### 🎨 Windows Terminal Rendering Enhancements
+
+- **Windows-Aware Terminal Detection**: Enhanced terminal detection to handle Windows PowerShell, Windows Terminal, ConEmu, and VS Code environments separately. Plain PowerShell.exe now correctly disables Rich Live rendering to prevent ANSI escape code artifacts.
+- **Legacy Windows Mode**: Console now uses Rich's `legacy_windows` parameter for plain PowerShell.exe, which handles ANSI codes differently to prevent rendering glitches.
+- **Environment-Specific Rendering**: Intelligently detects `WT_SESSION` (Windows Terminal), `ConEmuPID` (ConEmu), and `TERM_PROGRAM` (VS Code) to choose optimal rendering strategy.
+
 ## 📝 What's New in v1.1.4
 
 ### 🎨 Terminal Output Improvements
@@ -145,8 +153,8 @@ chmod +x scripts/build.sh && ./scripts/build.sh
 ### Option 3: Docker (Production)
 
 ```bash
-docker build -t jasper-finance:1.1.4 .
-docker run -it jasper-finance:1.1.4 interactive
+docker build -t jasper-finance:1.1.5 .
+docker run -it jasper-finance:1.1.5 interactive
 ```
 
 ---
@@ -485,4 +493,4 @@ See [LICENSE](LICENSE) for full legal text.
 
 ---
 
-**Built by analysts, for analysts. Stop guessing. Start researching. Jasper Finance v1.1.4**
+**Built by analysts, for analysts. Stop guessing. Start researching. Jasper Finance v1.1.5**

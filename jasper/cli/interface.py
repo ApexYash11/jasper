@@ -479,7 +479,7 @@ def render_mission_board(planning_tasks=None, planning_status="", execution_task
     if execution_tasks is None:
         execution_tasks = []
         
-    tree = Tree(f"[bold {THEME['Brand']}] MISSION CONTROL[/bold {THEME['Brand']}]", guide_style="dim")
+    tree = Tree(f"[bold {THEME['Brand']}] MISSION CONTROL[/bold {THEME['Brand']}]", guide_style="")
     
     # === PLANNING PHASE ===
     if planning_status or planning_tasks:
