@@ -28,7 +28,7 @@ Instead of just "chatting," Jasper follows a rigorous 5-stage pipeline:
 
 ---
 
-## 📝 What's New in v1.1.2
+## 📝 What's New in v1.1.3
 
 ### 🐛 Bug Fixes & Stability
 
@@ -135,8 +135,8 @@ chmod +x scripts/build.sh && ./scripts/build.sh
 ### Option 3: Docker (Production)
 
 ```bash
-docker build -t jasper-finance:1.1.2 .
-docker run -it jasper-finance:1.1.2 interactive
+docker build -t jasper-finance:1.1.3 .
+docker run -it jasper-finance:1.1.3 interactive
 ```
 
 ---
@@ -475,4 +475,4 @@ See [LICENSE](LICENSE) for full legal text.
 
 ---
 
-**Built by analysts, for analysts. Stop guessing. Start researching. Jasper Finance v1.1.2**
+**Built by analysts, for analysts. Stop guessing. Start researching. Jasper Finance v1.1.3**
