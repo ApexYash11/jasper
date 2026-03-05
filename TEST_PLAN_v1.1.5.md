@@ -1,7 +1,7 @@
-# Jasper v1.1.1 Feature Test Plan
+# Jasper v1.1.5 Feature Test Plan
 
 ## Overview
-This test plan covers 3 comprehensive queries that showcase all major features released in v1.1.1.
+This test plan covers 3 comprehensive queries that showcase all major features released in v1.1.5.
 
 ---
 

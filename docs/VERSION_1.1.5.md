@@ -226,6 +226,6 @@ None. All known terminal rendering issues from v1.1.4 are resolved.
 
 ---
 
-**Release by:** GitHub Copilot  
+**Release by:** ApexYash (AI-assisted)  
 **Tested on:** Windows PowerShell 5.1, Windows Terminal, ConEmu, VS Code, iTerm2, Linux Terminal  
 **Status:** ✅ Ready for Production

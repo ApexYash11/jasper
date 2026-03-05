@@ -9,14 +9,11 @@ Tests cover:
 """
 
 import os
-import sys
 import platform
 from unittest import mock
 import pytest
-from io import StringIO
 
 # Mock Rich components before importing main
-from rich.console import Console
 from rich.tree import Tree
 from rich.live import Live
 
@@ -38,9 +35,7 @@ class TestWindowsTerminalDetection:
     
     def test_windows_terminal_not_set(self):
         """Verify detection when WT_SESSION not set."""
-        with mock.patch.dict(os.environ, {}, clear=False):
-            # Remove WT_SESSION if it exists
-            os.environ.pop('WT_SESSION', None)
+        with mock.patch.dict(os.environ, {}, clear=True):
             is_windows_terminal = bool(os.getenv("WT_SESSION"))
             assert is_windows_terminal is False
     
@@ -66,10 +61,6 @@ class TestWindowsTerminalDetection:
 
 class TestUseLiveDetectionLogic:
     """Test use_live detection for different terminal environments."""
-    
-    def setup_method(self):
-        """Setup for each test."""
-        self.is_tty = True  # Simulate TTY
     
     def test_windows_plainpowershell_disables_live(self):
         """On Windows PowerShell.exe (no TERM_PROGRAM, no WT_SESSION, no ConEmuPID), Live should be disabled."""
@@ -309,14 +300,17 @@ class TestLiveWidgetRefreshRate:
     
     def test_live_refresh_rate_is_2hz(self):
         """Live widget should refresh at 2 Hz (not 4 Hz)."""
-        refresh_per_second = 2
-        assert refresh_per_second == 2, "Refresh rate should be 2 Hz"
+        # Create a Live widget instance with expected configuration
+        test_group = Tree("test")
+        live = Live(test_group, refresh_per_second=2)
+        assert live.refresh_per_second == 2, "Refresh rate should be 2 Hz"
     
     def test_live_widget_force_parameter(self):
         """Live widget should have force=False to respect terminal capabilities."""
-        # When force=False, Live respects terminal capabilities
-        force = False
-        assert force is False, "Live widget should not force rendering"
+        # Create a Live widget instance with expected configuration
+        test_group = Tree("test")
+        live = Live(test_group, force=False)
+        assert live.force is False, "Live widget should not force rendering"
 
 
 class TestIntegration:
