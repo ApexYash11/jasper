@@ -8,7 +8,7 @@ from unittest.mock import MagicMock
 from typing import Any, cast
 
 print("=" * 60)
-print("RichLogger UI Fixes Verification (v1.1.3)")
+print("RichLogger UI Fixes Verification (v1.1.4)")
 print("=" * 60)
 print()
 

@@ -28,6 +28,16 @@ Instead of just "chatting," Jasper follows a rigorous 5-stage pipeline:
 
 ---
 
+## 📝 What's New in v1.1.4
+
+### 🎨 Terminal Output Improvements
+
+- **Fixed ANSI Escape Codes in VS Code Terminal**: Rich's `Live` context manager was emitting ANSI escape codes that rendered as visible green lines in VS Code's integrated PowerShell terminal. Now intelligently detects TTY environments and disables Live rendering in non-TTY contexts (e.g., VS Code, IDEs) while preserving full UI in real terminals.
+- **Proper Terminal Detection**: Added `sys.stdout.isatty()` checks to determine if running in a real terminal. Fallback to plain output when not detected.
+- **Null-Safe Live Updates**: All `Live.update()` calls now safely check for `None` to prevent errors in non-Live modes.
+
+---
+
 ## 📝 What's New in v1.1.3
 
 ### 🐛 Bug Fixes & Stability
@@ -135,8 +145,8 @@ chmod +x scripts/build.sh && ./scripts/build.sh
 ### Option 3: Docker (Production)
 
 ```bash
-docker build -t jasper-finance:1.1.3 .
-docker run -it jasper-finance:1.1.3 interactive
+docker build -t jasper-finance:1.1.4 .
+docker run -it jasper-finance:1.1.4 interactive
 ```
 
 ---
@@ -475,4 +485,4 @@ See [LICENSE](LICENSE) for full legal text.
 
 ---
 
-**Built by analysts, for analysts. Stop guessing. Start researching. Jasper Finance v1.1.3**
+**Built by analysts, for analysts. Stop guessing. Start researching. Jasper Finance v1.1.4**
