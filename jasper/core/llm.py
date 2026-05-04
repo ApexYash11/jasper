@@ -16,10 +16,10 @@ def get_llm(temperature: float = 0) -> ChatOpenAI:
         Configured ChatOpenAI instance pointing to OpenRouter
     """
     api_key = get_llm_api_key()  # Raises ValueError if not set
-    # Default: Gemini Flash Exp (free, capable, good JSON compliance).
+    # Default: Minimax M2.5 (free, fast, reliable JSON).
     # Override via OPENROUTER_MODEL env var for a different model.
     # Recommended for production: openai/gpt-4o-mini or anthropic/claude-haiku
-    model = os.getenv("OPENROUTER_MODEL", "stepfun/step-3.5-flash:free")
+    model = os.getenv("OPENROUTER_MODEL", "minimax/minimax-m2.5:free")
 
     return ChatOpenAI(
         model=model,

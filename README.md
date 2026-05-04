@@ -113,7 +113,9 @@ Instead of just "chatting," Jasper follows a rigorous 5-stage pipeline:
 * 🔄 **Reflector Agent**: Post-execution recovery loop that retries transient network/rate-limit failures up to `max_retries` times per task before gracefully skipping.
 * ✅ **Partial-Success Validation**: If ≥ 50 % of tasks complete, synthesis proceeds with a confidence penalty and a visible data-gap caveat instead of hard-failing.
 * 📊 **Confidence Breakdown**: Transparent `data_coverage × data_quality × inference_strength` scoring per report.
-* ⚡ **LLM Streaming**: Synthesis tokens stream to the terminal in real-time via a Rich `Live` panel — no more blank screens.
+* ⚡ **Real-Time Token Streaming**: Synthesis tokens stream to the terminal with debounced, smooth updates. Built-in progress indicators keep you informed during synthesis — no blank screens.
+* 📋 **Structured Financial Tables**: Automatically converts markdown tables to formatted box tables with numeric column detection for clean, readable financial data presentation.
+* 🖥️ **Adaptive Terminal UI**: Intelligent terminal detection—Tier 1 (Windows Terminal, ConEmu, macOS, Linux) uses rich Live updates; Tier 2 (PowerShell.exe) uses line-by-line output. Zero artifacts across all platforms.
 * 💬 **Session Memory**: Interactive mode carries the last 3 Q&A pairs as context so follow-up questions work naturally.
 * 🌐 **Qualitative Queries**: Questions without a ticker (e.g. "Explain yield curve inversion") are answered directly from LLM domain knowledge.
 * 🗄️ **TTL Response Cache**: API responses are cached in-memory for 15 minutes (configurable via `JASPER_CACHE_TTL_SECS`) to save Alpha Vantage quota. Real-time quotes always bypass the cache.

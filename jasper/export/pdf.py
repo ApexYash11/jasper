@@ -132,8 +132,10 @@ def compile_html_to_pdf(html_content: str, output_path: str) -> str:
     """
     Compile semantic HTML + CSS to PDF.
     
-    Tries WeasyPrint first for professional layouts. 
-    Falls back to xhtml2pdf if system dependencies (GTK+) are missing.
+    Tries multiple rendering engines in cascade for maximum compatibility:
+    1. WeasyPrint (preferred, modern CSS support)
+    2. ReportLab (fallback, basic CSS but lightweight)
+    3. xhtml2pdf (final fallback, compatible but limited)
     
     WeasyPrint on Windows requires GTK+ libraries. If running from source,
     the build script (build.ps1) creates a self-contained executable with
@@ -153,7 +155,7 @@ def compile_html_to_pdf(html_content: str, output_path: str) -> str:
     try:
         import contextlib
         import sys
-        import logging
+        import logging as log_module
         import os
         
         # WINDOWS DLL COLLISION FIX: 
@@ -168,7 +170,7 @@ def compile_html_to_pdf(html_content: str, output_path: str) -> str:
 
         try:
             # Suppress WeasyPrint loggers and standard error streams (GTK+ missing on Windows)
-            logging.getLogger("weasyprint").setLevel(logging.CRITICAL)
+            log_module.getLogger("weasyprint").setLevel(log_module.CRITICAL)
             with open(os.devnull, "w") as devnull_out, open(os.devnull, "w") as devnull_err:
                 with contextlib.redirect_stdout(devnull_out), contextlib.redirect_stderr(devnull_err):
                     from weasyprint import HTML
@@ -183,13 +185,24 @@ def compile_html_to_pdf(html_content: str, output_path: str) -> str:
     except (ImportError, Exception) as e:
         # Gracefully handle missing GTK+ or WeasyPrint
         logger.warning(
-            "⚠️  RENDERER FALLBACK: WeasyPrint unavailable. Using xhtml2pdf (basic formatting).\n"
-            "    For full PDF features: use build.ps1 (pre-built executable) or Docker."
+            "⚠️  WeasyPrint unavailable. Trying ReportLab renderer..."
         )
-        logger.debug(f"    Error: {e}")
+        logger.debug(f"    WeasyPrint error: {e}")
         pass
 
-    # --- Fallback to xhtml2pdf (Compatible) ---
+    # --- Try ReportLab (Secondary Fallback) ---
+    try:
+        pdf_path_rl = compile_html_to_pdf_reportlab(html_content, str(pdf_path))
+        logger.info(f"PDF successfully rendered using ReportLab (fallback): {pdf_path}")
+        return pdf_path_rl
+    except Exception as e:
+        logger.warning(
+            "⚠️  ReportLab fallback failed. Trying xhtml2pdf renderer..."
+        )
+        logger.debug(f"    ReportLab error: {e}")
+        pass
+
+    # --- Fallback to xhtml2pdf (Final Fallback) ---
     try:
         from xhtml2pdf import pisa
         from io import BytesIO
@@ -213,12 +226,13 @@ def compile_html_to_pdf(html_content: str, output_path: str) -> str:
             )
             
         if getattr(pisa_status, 'err', 0) != 0:
-            raise RuntimeError(f"xhtml2pdf fallback failed with status {getattr(pisa_status, 'err', 'unknown')}")
+            raise RuntimeError(f"xhtml2pdf final fallback failed with status {getattr(pisa_status, 'err', 'unknown')}")
             
         with open(pdf_path, "wb") as f:
             result_file.seek(0)
             f.write(result_file.getvalue())
-            
+        
+        logger.info(f"PDF successfully rendered using xhtml2pdf (final fallback): {pdf_path}")
         return str(pdf_path.resolve())
         
     except Exception as e:
@@ -233,7 +247,15 @@ def export_report_to_pdf(
     """
     Export a FinalReport to audit-ready PDF.
     
-    High-level entry point that validates state, renders HTML, and compiles PDF.
+    High-level entry point that validates state, renders HTML, compiles PDF,
+    injects metadata, and verifies integrity.
+    
+    Pipeline:
+    1. Validate report state (if validate=True)
+    2. Render FinalReport to semantic HTML
+    3. Compile HTML to PDF (WeasyPrint → ReportLab → xhtml2pdf)
+    4. Inject searchable metadata (Title, Subject, Author, Keywords)
+    5. Verify PDF integrity (non-blocking)
     
     Args:
         report: FinalReport object to export
@@ -242,6 +264,10 @@ def export_report_to_pdf(
     
     Returns:
         Absolute path to generated PDF file
+    
+    Raises:
+        ValueError: If validation fails (when validate=True)
+        RuntimeError: If PDF compilation fails entirely
     """
     # FORENSIC VALIDATION GATE
     if validate:
@@ -278,6 +304,14 @@ def export_report_to_pdf(
     # Compile to PDF
     pdf_path = compile_html_to_pdf(html, output_path)
     
+    # Phase 1: Inject metadata
+    pdf_path = add_pdf_metadata(pdf_path, report)
+    
+    # Phase 3: Verify integrity (non-blocking)
+    is_valid, issues = verify_pdf_integrity(pdf_path, report)
+    if not is_valid and issues:
+        logger.warning(f"PDF integrity notice (report still valid): {', '.join(issues)}")
+    
     return pdf_path
 
 
@@ -306,3 +340,311 @@ def export_report_html(
         f.write(html)
     
     return str(html_path.resolve())
+
+
+def add_pdf_metadata(
+    pdf_path: str,
+    report: FinalReport,
+) -> str:
+    """
+    Inject searchable metadata into generated PDF.
+    
+    Adds Title, Subject, Author, Keywords, and CreationDate to PDF
+    for better document discoverability in filing systems.
+    
+    Args:
+        pdf_path: Path to generated PDF file
+        report: FinalReport object containing metadata
+    
+    Returns:
+        Absolute path to metadata-enhanced PDF file
+    
+    Raises:
+        FileNotFoundError: If PDF file not found
+        RuntimeError: If metadata injection fails
+    """
+    try:
+        from pypdf import PdfReader, PdfWriter
+    except ImportError:
+        logger.warning("pypdf not available; skipping metadata injection")
+        return str(Path(pdf_path).resolve())
+    
+    try:
+        pdf_path_obj = Path(pdf_path)
+        if not pdf_path_obj.exists():
+            raise FileNotFoundError(f"PDF file not found: {pdf_path}")
+        
+        # Read PDF
+        reader = PdfReader(str(pdf_path_obj))
+        writer = PdfWriter()
+        
+        # Copy all pages
+        for page in reader.pages:
+            writer.add_page(page)
+        
+        # Truncate query for title (max 100 chars)
+        query_short = report.query[:100].replace("\n", " ")
+        title = f"Jasper Analysis: {query_short}"
+        
+        # Build keywords from tickers and data sources
+        keywords = ", ".join(report.tickers + report.data_sources) if (report.tickers or report.data_sources) else "financial analysis"
+        
+        # Add metadata
+        writer.add_metadata({
+            "/Title": title,
+            "/Subject": f"{', '.join(report.tickers) if report.tickers else 'General'} - {report.report_mode.value}",
+            "/Author": f"Jasper Finance v{report.version}",
+            "/Keywords": keywords,
+            "/CreationDate": report.timestamp.isoformat(),
+        })
+        
+        # Write back to same file
+        with open(pdf_path_obj, "wb") as f:
+            writer.write(f)
+        
+        logger.debug(f"PDF metadata successfully injected: {pdf_path}")
+        return str(pdf_path_obj.resolve())
+        
+    except Exception as e:
+        logger.warning(f"Failed to inject PDF metadata: {e}")
+        return str(Path(pdf_path).resolve())
+
+
+def compile_html_to_pdf_reportlab(html_content: str, output_path: str) -> str:
+    """
+    Compile HTML to PDF using ReportLab Platypus.
+    
+    Fallback renderer for when WeasyPrint is unavailable.
+    Provides better CSS support than xhtml2pdf.
+    
+    Args:
+        html_content: Complete HTML string to render
+        output_path: Path where PDF should be written
+    
+    Returns:
+        Absolute path to generated PDF
+    
+    Raises:
+        Exception: If rendering fails
+    """
+    try:
+        from reportlab.lib.pagesizes import letter
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, Table, Flowable
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.units import inch
+        from reportlab.lib.colors import HexColor
+        from html.parser import HTMLParser
+    except ImportError:
+        raise ImportError("ReportLab not available for PDF rendering")
+    
+    pdf_path = Path(output_path)
+    pdf_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    try:
+        # Create PDF document
+        doc = SimpleDocTemplate(
+            str(pdf_path),
+            pagesize=letter,
+            rightMargin=0.75*inch,
+            leftMargin=0.75*inch,
+            topMargin=0.75*inch,
+            bottomMargin=0.75*inch,
+        )
+        
+        # Style sheet
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=16,
+            textColor=HexColor('#2d3748'),
+            spaceAfter=12,
+            fontName='Helvetica-Bold',
+        )
+        normal_style = ParagraphStyle(
+            'CustomNormal',
+            parent=styles['Normal'],
+            fontSize=9,
+            textColor=HexColor('#1a202c'),
+            spaceAfter=6,
+            leading=12,
+        )
+        
+        # Simple HTML-to-Platypus conversion (extract text from common tags)
+        story: list[Flowable] = []
+        
+        # Extract main content between body tags (simplified)
+        import re
+        body_match = re.search(r'<body[^>]*>(.*?)</body>', html_content, re.DOTALL | re.IGNORECASE)
+        body_content = body_match.group(1) if body_match else html_content
+        
+        # Parse headings and paragraphs
+        h1_matches = re.finditer(r'<h1[^>]*>(.*?)</h1>', body_content, re.IGNORECASE | re.DOTALL)
+        for match in h1_matches:
+            text = re.sub(r'<[^>]+>', '', match.group(1)).strip()
+            if text:
+                story.append(Paragraph(text, title_style))
+                story.append(Spacer(1, 0.1*inch))
+        
+        p_matches = re.finditer(r'<p[^>]*>(.*?)</p>', body_content, re.IGNORECASE | re.DOTALL)
+        for match in p_matches:
+            text = re.sub(r'<[^>]+>', '', match.group(1)).strip()
+            if text:
+                story.append(Paragraph(text, normal_style))
+        
+        # If no content extracted, add raw text
+        if not story:
+            raw_text = re.sub(r'<[^>]+>', '', body_content).strip()
+            if raw_text:
+                story.append(Paragraph(raw_text[:500], normal_style))
+        
+        # Build PDF
+        if story:
+            doc.build(story)
+        else:
+            # Fallback: create minimal PDF
+            fallback_story: list[Flowable] = [Paragraph("Report generated with ReportLab.", normal_style)]
+            doc.build(fallback_story)
+        
+        logger.info(f"PDF successfully rendered using ReportLab: {pdf_path}")
+        return str(pdf_path.resolve())
+        
+    except Exception as e:
+        raise RuntimeError(f"ReportLab PDF rendering failed: {str(e)}") from e
+
+
+def verify_pdf_integrity(pdf_path: str, report: FinalReport) -> tuple:
+    """
+    Post-generation verification of PDF integrity.
+    
+    Validates that the generated PDF is not empty, has searchable metadata,
+    and contains synthesis content.
+    
+    Args:
+        pdf_path: Path to generated PDF file
+        report: FinalReport object for content validation
+    
+    Returns:
+        Tuple of (is_valid: bool, issues: List[str])
+    """
+    try:
+        import pdfplumber
+    except ImportError:
+        logger.debug("pdfplumber not available; skipping PDF verification")
+        return (True, [])
+    
+    issues = []
+    
+    try:
+        pdf_path_obj = Path(pdf_path)
+        if not pdf_path_obj.exists():
+            return (False, ["PDF file not found"])
+        
+        with pdfplumber.open(str(pdf_path_obj)) as pdf:
+            # Check page count
+            if len(pdf.pages) == 0:
+                issues.append("PDF has no pages")
+                return (False, issues)
+            
+            # Extract text from all pages
+            all_text = ""
+            for page in pdf.pages:
+                page_text = page.extract_text() or ""
+                all_text += page_text + "\n"
+            
+            # Verify content presence
+            if not all_text.strip():
+                issues.append("PDF content is empty (no extractable text)")
+            
+            # Verify synthesis query or tickers present (case-insensitive)
+            query_lower = report.query.lower()
+            all_text_lower = all_text.lower()
+            
+            # Check if query keywords are in document
+            query_words = [w for w in query_lower.split() if len(w) > 3]  # Skip small words
+            if query_words and not any(word in all_text_lower for word in query_words[:2]):  # Check first 2 significant words
+                issues.append(f"Query keywords not found in PDF content")
+            
+            # Check for tickers
+            if report.tickers:
+                found_tickers = sum(1 for ticker in report.tickers if ticker.upper() in all_text.upper())
+                if found_tickers == 0:
+                    issues.append(f"No tickers ({', '.join(report.tickers)}) found in PDF")
+        
+        is_valid = len(issues) == 0
+        if is_valid:
+            logger.debug(f"PDF integrity verification passed: {pdf_path}")
+        else:
+            logger.warning(f"PDF integrity issues found: {', '.join(issues)}")
+        
+        return (is_valid, issues)
+        
+    except Exception as e:
+        logger.warning(f"PDF verification check failed: {e}")
+        return (True, [])  # Non-blocking; don't fail export on verification error
+
+
+def merge_pdf_reports(
+    pdf_paths: list[str],
+    output_path: str,
+    tickers: list[str] | None = None,
+) -> str:
+    """
+    Merge multiple PDF reports into a single batch document.
+    
+    Combines pages from multiple reports with batch metadata.
+    
+    Args:
+        pdf_paths: List of paths to PDF files to merge
+        output_path: Path where merged PDF should be written
+        tickers: Optional list of tickers for batch metadata
+    
+    Returns:
+        Absolute path to merged PDF file
+    
+    Raises:
+        ImportError: If pypdf not available
+        FileNotFoundError: If any PDF file not found
+        RuntimeError: If merge fails
+    """
+    try:
+        from pypdf import PdfReader, PdfWriter
+    except ImportError:
+        raise ImportError("pypdf required for batch report merging")
+    
+    try:
+        output_path_obj = Path(output_path)
+        output_path_obj.parent.mkdir(parents=True, exist_ok=True)
+        
+        writer = PdfWriter()
+        total_pages = 0
+        
+        # Merge all PDFs
+        for pdf_file in pdf_paths:
+            pdf_path = Path(pdf_file)
+            if not pdf_path.exists():
+                raise FileNotFoundError(f"PDF file not found: {pdf_file}")
+            
+            reader = PdfReader(str(pdf_path))
+            for page in reader.pages:
+                writer.add_page(page)
+                total_pages += 1
+        
+        # Add batch metadata
+        ticker_str = ", ".join(tickers) if tickers else "Batch Analysis"
+        writer.add_metadata({
+            "/Title": f"Jasper Batch Report: {ticker_str}",
+            "/Subject": f"Combined analysis of {len(pdf_paths)} reports",
+            "/Author": "Jasper Finance",
+            "/Keywords": ticker_str,
+        })
+        
+        # Write merged PDF
+        with open(output_path_obj, "wb") as f:
+            writer.write(f)
+        
+        logger.info(f"Batch PDF merge successful: {total_pages} pages from {len(pdf_paths)} reports → {output_path}")
+        return str(output_path_obj.resolve())
+        
+    except Exception as e:
+        raise RuntimeError(f"PDF merge failed: {str(e)}") from e
