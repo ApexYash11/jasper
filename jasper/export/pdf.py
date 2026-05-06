@@ -14,6 +14,7 @@ Architecture:
 
 import hashlib
 import logging
+from datetime import datetime, timezone
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
@@ -22,6 +23,19 @@ from markdown_it import MarkdownIt
 from ..core.state import FinalReport, ReportMode  # Add this import
 
 logger = logging.getLogger(__name__)
+
+
+def format_pdf_date(timestamp: datetime) -> str:
+    """Convert a datetime to a PDF-spec CreationDate string."""
+    if timestamp.tzinfo is None:
+        timestamp = timestamp.replace(tzinfo=timezone.utc)
+    else:
+        timestamp = timestamp.astimezone()
+
+    offset = timestamp.strftime("%z")
+    if not offset:
+        offset = "+0000"
+    return f"D:{timestamp.strftime('%Y%m%d%H%M%S')}{offset[:3]}'{offset[3:]}'"
 
 
 def render_markdown(text: str) -> str:
@@ -395,7 +409,7 @@ def add_pdf_metadata(
             "/Subject": f"{', '.join(report.tickers) if report.tickers else 'General'} - {report.report_mode.value}",
             "/Author": f"Jasper Finance v{report.version}",
             "/Keywords": keywords,
-            "/CreationDate": report.timestamp.isoformat(),
+            "/CreationDate": format_pdf_date(report.timestamp),
         })
         
         # Write back to same file
@@ -613,6 +627,9 @@ def merge_pdf_reports(
         raise ImportError("pypdf required for batch report merging")
     
     try:
+        if not pdf_paths:
+            raise ValueError("No PDF files provided in pdf_paths")
+
         output_path_obj = Path(output_path)
         output_path_obj.parent.mkdir(parents=True, exist_ok=True)
         

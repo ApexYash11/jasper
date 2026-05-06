@@ -13,6 +13,7 @@ import pytest
 import tempfile
 from pathlib import Path
 from datetime import datetime
+from copy import deepcopy
 
 from jasper.core.state import FinalReport, ConfidenceBreakdown, EvidenceItem
 from jasper.export.pdf import (
@@ -333,6 +334,7 @@ def test_pdf_integrity_verification_valid(sample_report):
         # Export should always succeed (verification is non-blocking)
         # Issues may exist but export completes
         assert Path(result_path).exists()
+        assert is_valid is True, f"PDF integrity check failed: {issues}"
 
 
 def test_pdf_integrity_verification_extractable(sample_report):
@@ -364,7 +366,10 @@ def test_pdf_integrity_verification_extractable(sample_report):
 
 def test_reportlab_fallback_compile(tmpdir):
     """Test ReportLab PDF compilation when WeasyPrint is unavailable."""
-    from jasper.export.pdf import compile_html_to_pdf_reportlab
+    try:
+        from jasper.export.pdf import compile_html_to_pdf_reportlab
+    except ImportError:
+        pytest.skip("ReportLab not available")
     
     html_content = """
     <html>
@@ -378,20 +383,20 @@ def test_reportlab_fallback_compile(tmpdir):
     
     output_path = Path(tmpdir) / "reportlab_test.pdf"
     
-    try:
-        result = compile_html_to_pdf_reportlab(html_content, str(output_path))
-        
-        assert Path(result).exists()
-        # Verify PDF header
-        with open(result, "rb") as f:
-            assert f.read(4) == b"%PDF"
-    except ImportError:
-        pytest.skip("ReportLab not available")
+    result = compile_html_to_pdf_reportlab(html_content, str(output_path))
+
+    assert Path(result).exists()
+    # Verify PDF header
+    with open(result, "rb") as f:
+        assert f.read(4) == b"%PDF"
 
 
 def test_reportlab_fallback_with_tables(tmpdir):
     """Test that ReportLab can handle HTML with tables."""
-    from jasper.export.pdf import compile_html_to_pdf_reportlab
+    try:
+        from jasper.export.pdf import compile_html_to_pdf_reportlab
+    except ImportError:
+        pytest.skip("ReportLab not available")
     
     html_content = """
     <html>
@@ -407,11 +412,8 @@ def test_reportlab_fallback_with_tables(tmpdir):
     
     output_path = Path(tmpdir) / "reportlab_tables.pdf"
     
-    try:
-        result = compile_html_to_pdf_reportlab(html_content, str(output_path))
-        assert Path(result).exists()
-    except ImportError:
-        pytest.skip("ReportLab not available")
+    result = compile_html_to_pdf_reportlab(html_content, str(output_path))
+    assert Path(result).exists()
 
 
 def test_batch_merge_pdfs(sample_report, tmpdir):
@@ -419,11 +421,11 @@ def test_batch_merge_pdfs(sample_report, tmpdir):
     from jasper.export.pdf import merge_pdf_reports
     
     # Create multiple test reports
-    report1 = sample_report
+    report1 = deepcopy(sample_report)
     report1.query = "Apple Q4 2024"
     report1.tickers = ["AAPL"]
     
-    report2 = sample_report
+    report2 = deepcopy(sample_report)
     report2.query = "Microsoft FY2024"
     report2.tickers = ["MSFT"]
     
@@ -462,11 +464,11 @@ def test_batch_merge_metadata(sample_report, tmpdir):
     """Test that batch merged PDFs have proper combined metadata."""
     from jasper.export.pdf import merge_pdf_reports
     
-    report1 = sample_report
+    report1 = deepcopy(sample_report)
     report1.query = "Report 1"
     report1.tickers = ["TICK1"]
     
-    report2 = sample_report
+    report2 = deepcopy(sample_report)
     report2.query = "Report 2"
     report2.tickers = ["TICK2"]
     

@@ -43,26 +43,30 @@ Open the generated PDF in Adobe Reader/Preview:
 
 ```python
 import asyncio
-from pathlib import Path
-from jasper import run_research, FinalReport
-from jasper.export import merge_pdf_reports
+from jasper import run_research
+from jasper.export import export_report_to_pdf, merge_pdf_reports
 
-# Generate 2 reports
-report1 = asyncio.run(run_research("Apple revenue trend"))
-report2 = asyncio.run(run_research("Microsoft revenue trend"))
 
-# Export both
-pdf1 = asyncio.run(asyncio.create_task(...))  # Export report1
-pdf2 = asyncio.run(asyncio.create_task(...))  # Export report2
+async def main():
+    # Generate 2 reports
+    report1 = await run_research("Apple revenue trend")
+    report2 = await run_research("Microsoft revenue trend")
 
-# Merge them
-merged_pdf = merge_pdf_reports(
-    [pdf1, pdf2],
-    "exports/merged_analysis.pdf",
-    tickers=["AAPL", "MSFT"]
-)
+    # Export both
+    pdf1 = export_report_to_pdf(report1, "exports/report_apple.pdf", validate=True)
+    pdf2 = export_report_to_pdf(report2, "exports/report_microsoft.pdf", validate=True)
 
-print(f"✅ Merged PDF: {merged_pdf}")
+    # Merge them
+    merged_pdf = merge_pdf_reports(
+        [pdf1, pdf2],
+        "exports/merged_analysis.pdf",
+        tickers=["AAPL", "MSFT"]
+    )
+
+    print(f"✅ Merged PDF: {merged_pdf}")
+
+
+asyncio.run(main())
 ```
 
 ---
@@ -80,8 +84,13 @@ print(f"✅ Merged PDF: {merged_pdf}")
 
 ```python
 from pypdf import PdfReader
+from glob import glob
 
-pdf_path = "exports/jasper_report_*.pdf"  # Replace with actual filename
+pdf_files = sorted(glob("exports/jasper_report_*.pdf"))
+if not pdf_files:
+    raise FileNotFoundError("No PDF files found in exports/")
+
+pdf_path = pdf_files[-1]
 reader = PdfReader(pdf_path)
 metadata = reader.metadata
 

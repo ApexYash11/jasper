@@ -58,6 +58,7 @@ Instead of just "chatting," Jasper follows a rigorous 5-stage pipeline:
 
 ### ✨ New Features & Enhancements
 
+- **Structured Financial Tables**: Markdown tables in reports are automatically converted to formatted box tables with numeric column detection. Provides clean, readable financial data presentation in the terminal.
 - **Balance Sheet Data**: New `balance_sheet` tool now dispatched by executor. Fetch total assets, liabilities, equity, debt ratios alongside income statements for complete financial picture.
 - **Cash Flow Statements**: New `cash_flow` tool provides operating, investing, and financing cash flows. Critical for understanding liquidity and capital allocation.
 - **Real-time Quotes**: New `realtime_quote` tool fetches live price, market cap, P/E ratio, 52-week range, and trading volume. Always bypasses cache for latest data.
