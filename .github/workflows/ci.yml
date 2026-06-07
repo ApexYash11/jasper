@@ -27,6 +27,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -e ".[dev]"
+        pip install ruff
 
     - name: Lint with ruff
       run: ruff check .
@@ -65,6 +66,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -e ".[dev,export]"
+        pip install ruff
 
     - name: Run PDF export tests
       run: |

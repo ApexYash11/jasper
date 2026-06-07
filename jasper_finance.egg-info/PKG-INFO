@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: jasper-finance
-Version: 1.1.6
+Version: 1.1.7
 Summary: Terminal-native autonomous financial research agent with deterministic planning and validation gating.
 Author-email: ApexYash <apex@example.com>
 License: MIT
@@ -41,6 +41,7 @@ Requires-Dist: pytest>=7.0; extra == "dev"
 Requires-Dist: pytest-cov>=4.0; extra == "dev"
 Requires-Dist: pytest-asyncio>=0.23.0; extra == "dev"
 Requires-Dist: pytest-mock>=3.12.0; extra == "dev"
+Requires-Dist: ruff>=0.1.0; extra == "dev"
 Dynamic: license-file
 
 # Jasper Finance

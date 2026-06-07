@@ -24,6 +24,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install build
           pip install -e ".[dev]"
+          pip install ruff
 
       - name: Lint with ruff
         run: ruff check .
@@ -40,19 +41,18 @@ jobs:
 
       - name: Verify package metadata
         run: |
-          python << 'PYEOF'
+          python -c '
           import glob, zipfile
-          whl = glob.glob('dist/*.whl')[0]
+          whl = glob.glob("dist/*.whl")[0]
           with zipfile.ZipFile(whl) as z:
-              meta = [f for f in z.namelist() if f.endswith('METADATA')][0]
+              meta = [f for f in z.namelist() if f.endswith("METADATA")][0]
               data = z.read(meta).decode()
-          assert 'weasyprint' not in data, 'weasyprint leaked into core deps!'
-          print('Core package has no PDF hard deps')
-          print('Distributions:')
+          assert "weasyprint" not in data, "weasyprint leaked into core deps!"
+          print("Core package has no PDF hard deps")
           import os
-          for f in os.listdir('dist'):
-              print(f'  {f} ({os.path.getsize(f):,} bytes)')
-          PYEOF
+          for f in os.listdir("dist"):
+              print("  %s (%d bytes)" % (f, os.path.getsize(f)))
+          '
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
