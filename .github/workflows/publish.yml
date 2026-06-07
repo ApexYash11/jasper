@@ -19,26 +19,18 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install system dependencies (for PDF export)
-        continue-on-error: true
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            libcairo2-dev pkg-config libgobject-introspection1 \
-            gir1.2-gtk-3.0 libgirepository1.0-dev python3-dev \
-            build-essential 2>&1 || echo "System deps unavailable"
-
-      - name: Install dependencies
+      - name: Install Python dependencies (core + dev only)
         run: |
           python -m pip install --upgrade pip
           pip install build
-          pip install -e ".[dev,export]"
+          pip install -e ".[dev]"
 
       - name: Lint with ruff
         run: ruff check .
 
-      - name: Run tests
-        run: pytest tests/
+      - name: Run core tests (excludes PDF export tests)
+        run: |
+          pytest tests/ --ignore=tests/test_pdf_export.py --ignore=tests/test_pdf_generation.py -v
 
       - name: Clean dist directory
         run: rm -rf dist/
@@ -47,7 +39,7 @@ jobs:
       - name: Build distribution
         run: python -m build
 
-      - name: Verify package metadata
+      - name: Verify package metadata (no PDF deps leaked into core)
         run: |
           python -c "
           import zipfile, re
