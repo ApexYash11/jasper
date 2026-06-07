@@ -24,9 +24,8 @@ classifiers = [
     "Topic :: Office/Business :: Financial",
 ]
 dependencies = [
-    "typer[all]==0.9.0",
-    "click>=8.0.0,<8.1.0",
-    "rich==13.0.0",
+    "typer[all]>=0.9.0",
+    "rich>=13.0.0",
     "pydantic>=2.0.0",
     "langchain-core>=0.1.0",
     "langchain-openai>=0.1.0",
@@ -35,15 +34,17 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "yfinance>=0.2.0",
     "jinja2>=3.1.0",
+    "markdown-it-py>=3.0.0",
+]
+
+[project.optional-dependencies]
+export = [
     "weasyprint>=60.0",
     "xhtml2pdf>=0.2.15",
-    "markdown-it-py>=3.0.0",
     "pypdf>=4.0.0",
     "reportlab>=4.0.0",
     "pdfplumber>=0.10.0",
 ]
-
-[project.optional-dependencies]
 dev = [
     "pytest>=7.0",
     "pytest-cov>=4.0",

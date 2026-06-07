@@ -8,21 +8,37 @@ on:
       - 'v[0-9]+.[0-9]+.[0-9]+'
 
 jobs:
-  build:
+  test-and-build:
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.9'
+          python-version: '3.11'
+
+      - name: Install system dependencies (for PDF export)
+        continue-on-error: true
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libcairo2-dev pkg-config libgobject-introspection1 \
+            gir1.2-gtk-3.0 libgirepository1.0-dev python3-dev \
+            build-essential 2>&1 || echo "System deps unavailable"
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install build
+          pip install -e ".[dev,export]"
+
+      - name: Lint with ruff
+        run: ruff check .
+
+      - name: Run tests
+        run: pytest tests/
 
       - name: Clean dist directory
         run: rm -rf dist/
@@ -30,6 +46,20 @@ jobs:
 
       - name: Build distribution
         run: python -m build
+
+      - name: Verify package metadata
+        run: |
+          python -c "
+          import zipfile, re
+          with zipfile.ZipFile('dist/jasper_finance-1.1.6-py3-none-any.whl') as z:
+              metadata = z.read('jasper_finance-1.1.6.dist-info/METADATA').decode()
+          assert 'weasyprint' not in metadata, 'weasyprint is still a hard dep in metadata'
+          print('✅ Core package has no PDF hard deps')
+          print('📦 Distributions:')
+          import os
+          for f in os.listdir('dist'):
+              print(f'   {f} ({os.path.getsize(f):,} bytes)')
+          "
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -39,7 +69,7 @@ jobs:
 
   publish-to-pypi:
     name: Publish to PyPI
-    needs: build
+    needs: test-and-build
     runs-on: ubuntu-latest
     environment:
       name: pypi

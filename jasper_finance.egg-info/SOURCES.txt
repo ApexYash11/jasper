@@ -45,6 +45,7 @@ tests/test_integration_fixes.py
 tests/test_package.py
 tests/test_pdf_export.py
 tests/test_pdf_generation.py
+tests/test_rich_live_rendering.py
 tests/test_rich_logger_fixes.py
 tests/test_table_parsing.py
 tests/test_v0_1_0.py

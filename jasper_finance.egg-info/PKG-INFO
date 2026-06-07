@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: jasper-finance
-Version: 1.1.4
+Version: 1.1.6
 Summary: Terminal-native autonomous financial research agent with deterministic planning and validation gating.
 Author-email: ApexYash <apex@example.com>
 License: MIT
@@ -19,9 +19,8 @@ Classifier: Topic :: Office/Business :: Financial
 Requires-Python: >=3.9
 Description-Content-Type: text/markdown
 License-File: LICENSE
-Requires-Dist: typer[all]==0.9.0
-Requires-Dist: click<8.1.0,>=8.0.0
-Requires-Dist: rich==13.0.0
+Requires-Dist: typer[all]>=0.9.0
+Requires-Dist: rich>=13.0.0
 Requires-Dist: pydantic>=2.0.0
 Requires-Dist: langchain-core>=0.1.0
 Requires-Dist: langchain-openai>=0.1.0
@@ -30,9 +29,13 @@ Requires-Dist: httpx>=0.24.0
 Requires-Dist: python-dotenv>=1.0.0
 Requires-Dist: yfinance>=0.2.0
 Requires-Dist: jinja2>=3.1.0
-Requires-Dist: weasyprint>=60.0
-Requires-Dist: xhtml2pdf>=0.2.15
 Requires-Dist: markdown-it-py>=3.0.0
+Provides-Extra: export
+Requires-Dist: weasyprint>=60.0; extra == "export"
+Requires-Dist: xhtml2pdf>=0.2.15; extra == "export"
+Requires-Dist: pypdf>=4.0.0; extra == "export"
+Requires-Dist: reportlab>=4.0.0; extra == "export"
+Requires-Dist: pdfplumber>=0.10.0; extra == "export"
 Provides-Extra: dev
 Requires-Dist: pytest>=7.0; extra == "dev"
 Requires-Dist: pytest-cov>=4.0; extra == "dev"
@@ -70,6 +73,26 @@ Instead of just "chatting," Jasper follows a rigorous 5-stage pipeline:
 
 ---
 
+## 📝 What's New in v1.1.6
+
+### 🔄 Hybrid Tier 1/Tier 2 Terminal Streaming Architecture
+
+- **Tier 1 (Advanced Terminals)**: Windows Terminal, ConEmu, macOS, Linux continue using Rich Live widget with real-time streaming preview and persistent board updates.
+- **Tier 2 (Basic Terminals)**: Plain PowerShell.exe now gets line-by-line event output without Live rendering artifacts, showing phases (PLANNING, EXECUTING, SYNTHESIS) with progress indicators.
+- **Unified UX**: All terminal types now provide real-time feedback with zero artifacts. Users get appropriate visual feedback for their environment.
+- **Legacy Windows Mode**: Console now uses Rich's `legacy_windows` parameter for plain PowerShell.exe, which handles ANSI codes differently to prevent rendering glitches.
+- **Environment-Specific Rendering**: Intelligently detects `WT_SESSION` (Windows Terminal), `ConEmuPID` (ConEmu), and `TERM_PROGRAM` (VS Code) to choose optimal rendering strategy.
+
+## 📝 What's New in v1.1.4
+
+### 🎨 Terminal Output Improvements
+
+- **Fixed ANSI Escape Codes in VS Code Terminal**: Rich's `Live` context manager was emitting ANSI escape codes that rendered as visible green lines in VS Code's integrated PowerShell terminal. Now intelligently detects TTY environments and disables Live rendering in non-TTY contexts (e.g., VS Code, IDEs) while preserving full UI in real terminals.
+- **Proper Terminal Detection**: Added `sys.stdout.isatty()` checks to determine if running in a real terminal. Fallback to plain output when not detected.
+- **Null-Safe Live Updates**: All `Live.update()` calls now safely check for `None` to prevent errors in non-Live modes.
+
+---
+
 ## 📝 What's New in v1.1.3
 
 ### 🐛 Bug Fixes & Stability
@@ -80,6 +103,7 @@ Instead of just "chatting," Jasper follows a rigorous 5-stage pipeline:
 
 ### ✨ New Features & Enhancements
 
+- **Structured Financial Tables**: Markdown tables in reports are automatically converted to formatted box tables with numeric column detection. Provides clean, readable financial data presentation in the terminal.
 - **Balance Sheet Data**: New `balance_sheet` tool now dispatched by executor. Fetch total assets, liabilities, equity, debt ratios alongside income statements for complete financial picture.
 - **Cash Flow Statements**: New `cash_flow` tool provides operating, investing, and financing cash flows. Critical for understanding liquidity and capital allocation.
 - **Real-time Quotes**: New `realtime_quote` tool fetches live price, market cap, P/E ratio, 52-week range, and trading volume. Always bypasses cache for latest data.
@@ -135,7 +159,9 @@ Instead of just "chatting," Jasper follows a rigorous 5-stage pipeline:
 * 🔄 **Reflector Agent**: Post-execution recovery loop that retries transient network/rate-limit failures up to `max_retries` times per task before gracefully skipping.
 * ✅ **Partial-Success Validation**: If ≥ 50 % of tasks complete, synthesis proceeds with a confidence penalty and a visible data-gap caveat instead of hard-failing.
 * 📊 **Confidence Breakdown**: Transparent `data_coverage × data_quality × inference_strength` scoring per report.
-* ⚡ **LLM Streaming**: Synthesis tokens stream to the terminal in real-time via a Rich `Live` panel — no more blank screens.
+* ⚡ **Real-Time Token Streaming**: Synthesis tokens stream to the terminal with debounced, smooth updates. Built-in progress indicators keep you informed during synthesis — no blank screens.
+* 📋 **Structured Financial Tables**: Automatically converts markdown tables to formatted box tables with numeric column detection for clean, readable financial data presentation.
+* 🖥️ **Adaptive Terminal UI**: Intelligent terminal detection—Tier 1 (Windows Terminal, ConEmu, macOS, Linux) uses rich Live updates; Tier 2 (PowerShell.exe) uses line-by-line output. Zero artifacts across all platforms.
 * 💬 **Session Memory**: Interactive mode carries the last 3 Q&A pairs as context so follow-up questions work naturally.
 * 🌐 **Qualitative Queries**: Questions without a ticker (e.g. "Explain yield curve inversion") are answered directly from LLM domain knowledge.
 * 🗄️ **TTL Response Cache**: API responses are cached in-memory for 15 minutes (configurable via `JASPER_CACHE_TTL_SECS`) to save Alpha Vantage quota. Real-time quotes always bypass the cache.
@@ -153,6 +179,13 @@ Instead of just "chatting," Jasper follows a rigorous 5-stage pipeline:
 pip install jasper-finance
 jasper interactive
 ```
+
+> **PDF export** requires system-level PDF libraries. Install with:
+> ```bash
+> pip install "jasper-finance[export]"
+> ```
+> This adds WeasyPrint, ReportLab, xhtml2pdf, and pypdf support.
+> *Windows users*: WeasyPrint needs the [GTK3 runtime](https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer).
 
 ### Option 2: Pre-Built Executable
 
@@ -177,8 +210,8 @@ chmod +x scripts/build.sh && ./scripts/build.sh
 ### Option 3: Docker (Production)
 
 ```bash
-docker build -t jasper-finance:1.1.3 .
-docker run -it jasper-finance:1.1.3 interactive
+docker build -t jasper-finance:1.1.6 .
+docker run -it jasper-finance:1.1.6 interactive
 ```
 
 ---
@@ -205,7 +238,7 @@ conda create -n jasper python=3.11 -y
 conda activate jasper
 
 # Install Jasper
-pip install jasper-finance
+pip install "jasper-finance[export]"
 ```
 
 ### Linux (Ubuntu/Debian)
@@ -226,7 +259,7 @@ conda create -n jasper python=3.11 -y
 conda activate jasper
 
 # Install Jasper
-pip install jasper-finance
+pip install "jasper-finance[export]"
 ```
 
 ### Windows
@@ -240,7 +273,7 @@ conda create -n jasper python=3.11 -y
 conda activate jasper
 
 # Install Jasper
-pip install jasper-finance
+pip install "jasper-finance[export]"
 ```
 
 ### Daily Usage (All Platforms)
@@ -517,4 +550,4 @@ See [LICENSE](LICENSE) for full legal text.
 
 ---
 
-**Built by analysts, for analysts. Stop guessing. Start researching. Jasper Finance v1.1.3**
+**Built by analysts, for analysts. Stop guessing. Start researching. Jasper Finance v1.1.6**

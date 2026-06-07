@@ -135,6 +135,13 @@ pip install jasper-finance
 jasper interactive
 ```
 
+> **PDF export** requires system-level PDF libraries. Install with:
+> ```bash
+> pip install "jasper-finance[export]"
+> ```
+> This adds WeasyPrint, ReportLab, xhtml2pdf, and pypdf support.
+> *Windows users*: WeasyPrint needs the [GTK3 runtime](https://github.com/tschoonj/GTK-for-Windows-Runtime-Environment-Installer).
+
 ### Option 2: Pre-Built Executable
 
 **No Python needed. Everything bundled including PDF renderer.**
@@ -186,7 +193,7 @@ conda create -n jasper python=3.11 -y
 conda activate jasper
 
 # Install Jasper
-pip install jasper-finance
+pip install "jasper-finance[export]"
 ```
 
 ### Linux (Ubuntu/Debian)
@@ -207,7 +214,7 @@ conda create -n jasper python=3.11 -y
 conda activate jasper
 
 # Install Jasper
-pip install jasper-finance
+pip install "jasper-finance[export]"
 ```
 
 ### Windows
@@ -221,7 +228,7 @@ conda create -n jasper python=3.11 -y
 conda activate jasper
 
 # Install Jasper
-pip install jasper-finance
+pip install "jasper-finance[export]"
 ```
 
 ### Daily Usage (All Platforms)
