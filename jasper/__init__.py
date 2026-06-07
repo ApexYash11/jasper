@@ -1,4 +1,4 @@
-__version__ = "1.1.6"
+__version__ = "1.1.7"
 
 from typing import TYPE_CHECKING, Optional
 
@@ -63,6 +63,6 @@ async def run_research(query: str) -> "Optional[FinalReport]":
 def __getattr__(name: str):
     if name == "FinalReport":
         from .core.state import FinalReport
+
         return FinalReport
     raise AttributeError(f"module 'jasper' has no attribute {name!r}")
-
