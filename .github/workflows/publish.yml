@@ -34,24 +34,25 @@ jobs:
 
       - name: Clean dist directory
         run: rm -rf dist/
-        shell: bash
 
       - name: Build distribution
         run: python -m build
 
-      - name: Verify package metadata (no PDF deps leaked into core)
+      - name: Verify package metadata
         run: |
-          python -c "
-          import zipfile, re
-          with zipfile.ZipFile('dist/jasper_finance-1.1.6-py3-none-any.whl') as z:
-              metadata = z.read('jasper_finance-1.1.6.dist-info/METADATA').decode()
-          assert 'weasyprint' not in metadata, 'weasyprint is still a hard dep in metadata'
-          print('✅ Core package has no PDF hard deps')
-          print('📦 Distributions:')
+          python << 'PYEOF'
+          import glob, zipfile
+          whl = glob.glob('dist/*.whl')[0]
+          with zipfile.ZipFile(whl) as z:
+              meta = [f for f in z.namelist() if f.endswith('METADATA')][0]
+              data = z.read(meta).decode()
+          assert 'weasyprint' not in data, 'weasyprint leaked into core deps!'
+          print('Core package has no PDF hard deps')
+          print('Distributions:')
           import os
           for f in os.listdir('dist'):
-              print(f'   {f} ({os.path.getsize(f):,} bytes)')
-          "
+              print(f'  {f} ({os.path.getsize(f):,} bytes)')
+          PYEOF
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
