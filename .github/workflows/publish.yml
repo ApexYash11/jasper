@@ -27,7 +27,11 @@ jobs:
           pip install ruff
 
       - name: Lint with ruff
-        run: ruff check .
+        run: |
+          echo "PATH: $PATH"
+          which python || echo "python not in PATH"
+          python -m ruff --version || echo "ruff module not found"
+          python -m ruff check .
 
       - name: Run core tests (excludes PDF export tests)
         run: |
