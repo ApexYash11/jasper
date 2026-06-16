@@ -1,6 +1,6 @@
 from ..agent.planner import Planner
 from ..agent.executor import Executor
-from ..agent.validator import validator
+from ..agent.validator import Validator
 from ..agent.synthesizer import Synthesizer
 from ..agent.reflector import Reflector
 from .state import (
@@ -21,7 +21,7 @@ class JasperController:
         self,
         planner: Planner,
         executor: Executor,
-        validator: validator,
+        validator: Validator,
         synthesizer: Synthesizer,
         logger: SessionLogger | None = None,
         reflector: Reflector | None = None,

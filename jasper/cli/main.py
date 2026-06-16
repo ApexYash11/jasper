@@ -16,7 +16,7 @@ from pathlib import Path
 from ..core.controller import JasperController
 from ..agent.planner import Planner
 from ..agent.executor import Executor
-from ..agent.validator import validator
+from ..agent.validator import Validator
 from ..agent.synthesizer import Synthesizer
 from ..tools.financials import FinancialDataRouter
 from ..tools.providers.alpha_vantage import AlphaVantageClient
@@ -132,8 +132,6 @@ class RichLogger(SessionLogger):
         self.console = board_context.get("console")
         self.is_live = self.live is not None
         self.synthesis_print_buffer = ""
-        self._last_synthesis_print = 0.0
-        self._synthesis_dot_count = 0
         self._synthesis_started_printed = False  # Guard against duplicate prints
 
         # Track task data for reference
@@ -315,8 +313,6 @@ class RichLogger(SessionLogger):
                         end="",
                     )
                     self._synthesis_started_printed = True
-                self._synthesis_dot_count = 0
-                self._last_synthesis_print = time.perf_counter()
                 return
             update_synthesis_status(
                 self.synthesis_node, "✍️  Compiling executive report..."
@@ -456,11 +452,6 @@ class RichLogger(SessionLogger):
 
             if is_sentence_end:
                 self.console.print("")
-            self._last_synthesis_print = now
-
-            # Newline every 20 dots to prevent one very long line
-            if self._synthesis_dot_count % 20 == 0:
-                self.console.print("")
 
     def _is_low_value_content(self, text: str) -> bool:
         """
@@ -569,7 +560,7 @@ async def execute_research(query: str, console: Console) -> Jasperstate:
         controller = JasperController(
             Planner(llm, logger=logger),
             Executor(router, logger=logger),
-            validator(logger=logger),
+            Validator(logger=logger),
             Synthesizer(llm, logger=logger),
             logger=logger,
         )

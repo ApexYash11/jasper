@@ -3,7 +3,7 @@ from jasper.cli.main import app
 from jasper.core.controller import JasperController
 from jasper.agent.planner import Planner
 from jasper.agent.executor import Executor
-from jasper.agent.validator import validator
+from jasper.agent.validator import Validator
 from jasper.agent.synthesizer import Synthesizer
 from jasper.core.state import Jasperstate
 
@@ -26,7 +26,7 @@ def test_imports():
     assert JasperController is not None
     assert Planner is not None
     assert Executor is not None
-    assert validator is not None
+    assert Validator is not None
     assert Synthesizer is not None
     assert Jasperstate is not None
 

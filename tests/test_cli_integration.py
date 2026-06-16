@@ -102,13 +102,13 @@ def test_agent_modules():
     try:
         from jasper.agent.planner import Planner
         from jasper.agent.executor import Executor
-        from jasper.agent.validator import validator
+        from jasper.agent.validator import Validator
         from jasper.agent.synthesizer import Synthesizer
         from jasper.agent.entity_extractor import EntityExtractor
 
         assert callable(Planner), "Planner must be a class"
         assert callable(Executor), "Executor must be a class"
-        assert callable(validator), "validator must be a class"
+        assert callable(Validator), "Validator must be a class"
         assert callable(Synthesizer), "Synthesizer must be a class"
         assert callable(EntityExtractor), "EntityExtractor must be a class"
 

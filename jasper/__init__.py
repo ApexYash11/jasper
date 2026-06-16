@@ -40,7 +40,7 @@ async def run_research(query: str) -> "Optional[FinalReport]":
     from .core.controller import JasperController
     from .agent.planner import Planner
     from .agent.executor import Executor
-    from .agent.validator import validator as ValidatorClass
+    from .agent.validator import Validator
     from .agent.synthesizer import Synthesizer
     from .tools.financials import FinancialDataRouter
     from .tools.providers.alpha_vantage import AlphaVantageClient
@@ -55,7 +55,7 @@ async def run_research(query: str) -> "Optional[FinalReport]":
     controller = JasperController(
         planner=Planner(llm),
         executor=Executor(router),
-        validator=ValidatorClass(),
+        validator=Validator(),
         synthesizer=Synthesizer(llm),
     )
 
