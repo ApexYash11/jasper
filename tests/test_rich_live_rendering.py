@@ -304,14 +304,16 @@ class TestGuideStyleConfiguration:
 
 
 class TestLiveWidgetRefreshRate:
-    """Test Live widget refresh rate settings."""
+    """Test Live widget configuration for streaming refresh rate."""
 
-    def test_live_refresh_rate_is_2hz(self):
-        """Live widget should refresh at 2 Hz (not 4 Hz)."""
-        # Create a Live widget instance with expected configuration
-        test_group = Tree("test")
-        live = Live(test_group, refresh_per_second=2)
-        assert live.refresh_per_second == 2, "Refresh rate should be 2 Hz"
+    def test_live_refresh_rate_is_10hz(self):
+        """Live widget refresh rate should be 10 Hz for smooth streaming."""
+        from rich.live import Live
+        from rich.console import Group
+
+        test_group = Group("")
+        live = Live(test_group, refresh_per_second=10)
+        assert live.refresh_per_second == 10, "Refresh rate should be 10 Hz"
 
     def test_live_widget_force_parameter(self):
         """Live widget should have force=False to respect terminal capabilities."""

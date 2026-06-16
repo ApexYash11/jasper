@@ -1,6 +1,7 @@
 import typer
 import asyncio
 import os
+import re
 import time
 import sys
 import platform
@@ -144,12 +145,12 @@ class RichLogger(SessionLogger):
         self._task_started_at = {}
 
         # Keep streaming UI concise: never show full generated output in-flight
-        self._preview_char_limit = 160
-        self._preview_update_every_chars = 300
+        self._preview_char_limit = 120
+        self._preview_update_every_chars = 60
 
         # Debouncing: track last update time to avoid excessive Live refreshes
         self._last_update_time = 0
-        self._min_update_interval = 0.2  # 200ms minimum between Live updates
+        self._min_update_interval = 0.08  # 80ms, ~12fps ceiling
 
     def _should_update_live(self) -> bool:
         """Check if enough time has passed since last Live update."""
@@ -417,7 +418,13 @@ class RichLogger(SessionLogger):
                 return
 
             if len(normalized) > self._preview_char_limit:
-                preview = "..." + normalized[-self._preview_char_limit :]
+                sentences = re.split(r"(?<=[.!?])\s+", normalized)
+                if len(sentences) > 1 and len(sentences[-1]) > 10:
+                    preview = sentences[-1][:120]
+                elif len(sentences) > 1:
+                    preview = sentences[-2][:120] + " " + sentences[-1]
+                else:
+                    preview = normalized[-self._preview_char_limit :]
             else:
                 preview = normalized
 
@@ -436,22 +443,19 @@ class RichLogger(SessionLogger):
     def _handle_synthesis_print(self, token: str) -> None:
         """
         Tier 2 (plain PowerShell) synthesis progress display.
-        Prints dots every 2 seconds to show liveness without
-        flooding the terminal.
+        Prints accumulated tokens at sentence boundaries or every ~80 chars.
         """
         self.synthesis_print_buffer += token
 
-        # Cap buffer to avoid unbounded growth
-        if len(self.synthesis_print_buffer) > 500:
-            self.synthesis_print_buffer = self.synthesis_print_buffer[-500:]
+        is_sentence_end = token.rstrip().endswith((".", "!", "?", "\n"))
+        is_long_enough = len(self.synthesis_print_buffer) >= 80
 
-        now = time.perf_counter()
-        elapsed = now - self._last_synthesis_print
+        if is_sentence_end or is_long_enough:
+            self.console.print(self.synthesis_print_buffer, end="", flush=True)
+            self.synthesis_print_buffer = ""
 
-        # Print a dot every 2 seconds to show progress
-        if elapsed >= 2.0:
-            self.console.print(".", end="", flush=True)
-            self._synthesis_dot_count += 1
+            if is_sentence_end:
+                self.console.print("")
             self._last_synthesis_print = now
 
             # Newline every 20 dots to prevent one very long line
@@ -535,7 +539,7 @@ async def execute_research(query: str, console: Console) -> Jasperstate:
         use_live = is_tty and not is_vscode and not is_dumb
 
     if use_live:
-        live_context = Live(board_panel, refresh_per_second=2, console=console)
+        live_context = Live(board_panel, refresh_per_second=10, console=console)
     else:
         # Fallback: simple dummy context that doesn't render live updates
         from contextlib import nullcontext
