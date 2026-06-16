@@ -268,16 +268,18 @@ class RichLogger(SessionLogger):
                         f"✔ {desc}{duration_text}",
                         status="success",
                     )
-                update_synthesis_status(
-                    self.execution_node, f"✅ Completed: {desc[:60].rstrip()}{duration_text}"
-                )
+                    update_synthesis_status(
+                        self.execution_node,
+                        f"✅ Completed: {desc[:60].rstrip()}{duration_text}",
+                    )
                 else:
                     append_task_to_node(
                         self.execution_node, f"✖ {desc}{duration_text}", status="failed"
                     )
-                update_synthesis_status(
-                    self.execution_node, f"⚠️ Failed: {desc[:60].rstrip()}{duration_text}"
-                )
+                    update_synthesis_status(
+                        self.execution_node,
+                        f"⚠️ Failed: {desc[:60].rstrip()}{duration_text}",
+                    )
 
             # Force update for task completion (always show immediately)
             if self.live:
@@ -481,7 +483,7 @@ class RichLogger(SessionLogger):
 
         # Check if this is a repeated markdown heading at the start
         stripped = text.strip()
-        if re.match(r'^#{1,3}\s+\S', stripped):
+        if re.match(r"^#{1,3}\s+\S", stripped):
             return True  # Repeated headings are not preview-worthy
         for section in key_sections:
             if section in text_lower:
@@ -574,10 +576,12 @@ async def execute_research(query: str, console: Console) -> Jasperstate:
         try:
             state = await controller.run(query)
         except asyncio.CancelledError:
-            return
+            raise
         except KeyboardInterrupt:
             console.print("\n[yellow]Interrupted by user[/yellow]")
-            return
+            state = Jasperstate(query=query)
+            state.status = "Failed"
+            state.error = "Interrupted by user"
 
     # After Live block, show results
     await asyncio.sleep(0.2)  # Short pause to give report "weight"
