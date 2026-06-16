@@ -1,8 +1,11 @@
 from typing import Any, List, Dict
 import asyncio
+import json
 import os
 import time
+import aiosqlite
 from .exceptions import DataProviderError
+from ..core.config import JASPER_HOME
 
 # Alias so existing executor code that catches FinancialDataError still works
 FinancialDataError = DataProviderError
@@ -86,12 +89,77 @@ async def _cache_set_async(key: str, data) -> None:
         _cache[key] = (time.monotonic(), data)
 
 
+# ---------------------------------------------------------------------------
+# Disk-backed persistent cache (L2) — survives process restarts
+# Uses aiosqlite for truly async, concurrency-safe reads/writes.
+# Best-effort: failures degrade silently to avoid blocking queries.
+# ---------------------------------------------------------------------------
+_DISK_CACHE_DB = JASPER_HOME / "cache.db"
+_DISK_CACHE_DB.parent.mkdir(parents=True, exist_ok=True)
+
+
+async def _disk_cache_get(key: str):
+    try:
+        async with aiosqlite.connect(str(_DISK_CACHE_DB)) as db:
+            async with db.execute(
+                "SELECT ts, data FROM cache WHERE key = ?", (key,)
+            ) as cur:
+                row = await cur.fetchone()
+                if row:
+                    ts, data = row
+                    if (time.monotonic() - ts) < _CACHE_TTL:
+                        return json.loads(data)
+                    await db.execute("DELETE FROM cache WHERE key = ?", (key,))
+                    await db.commit()
+    except Exception:
+        return None
+
+
+async def _disk_cache_set(key: str, data) -> None:
+    try:
+        async with aiosqlite.connect(str(_DISK_CACHE_DB)) as db:
+            await db.execute(
+                "CREATE TABLE IF NOT EXISTS cache (key TEXT PRIMARY KEY, ts REAL, data TEXT)"
+            )
+            await db.execute(
+                "INSERT OR REPLACE INTO cache VALUES (?, ?, ?)",
+                (key, time.monotonic(), json.dumps(data, default=str)),
+            )
+            await db.commit()
+    except Exception:
+        pass  # disk cache is best-effort
+
+
 # --- Financial Data Router ---
 # Aggregates multiple data providers to ensure reliability.
 # Providers are tried in order; the first successful response wins.
 class FinancialDataRouter:
     def __init__(self, providers: List[Any]):
         self.providers = providers
+        self._call_counts: Dict[str, int] = {}
+
+    def _increment_call_count(self, provider_name: str) -> None:
+        self._call_counts[provider_name] = self._call_counts.get(provider_name, 0) + 1
+
+    async def check_provider_health(self) -> Dict[str, bool]:
+        """Ping each provider to check availability."""
+        results = {}
+        for provider in self.providers:
+            name = type(provider).__name__
+            method = getattr(provider, "income_statement", None)
+            if method is None:
+                results[name] = False
+                continue
+            try:
+                await asyncio.wait_for(method("AAPL"), timeout=10)
+                results[name] = True
+            except Exception:
+                results[name] = False
+        return results
+
+    def get_call_counts(self) -> Dict[str, int]:
+        """Return per-provider API call counts for this session."""
+        return dict(self._call_counts)
 
     async def _fetch_from_providers(self, method_name: str, ticker: str, label: str):
         """Try each provider in order until one succeeds. No caching."""
@@ -106,7 +174,9 @@ class FinancialDataRouter:
                 continue
             for symbol in symbol_candidates:
                 try:
-                    return await method(symbol)
+                    result = await method(symbol)
+                    self._increment_call_count(type(provider).__name__)
+                    return result
                 except Exception as e:
                     errors.append(f"{type(provider).__name__}({symbol}): {e}")
 
@@ -128,15 +198,21 @@ class FinancialDataRouter:
 
         if use_cache:
             async with _get_cache_lock(cache_key):
-                # Check cache under lock (fast path for cached data)
+                # L1: In-memory cache (fast)
                 entry = _cache.get(cache_key)
                 if entry is not None and (time.monotonic() - entry[0]) < _CACHE_TTL:
                     return entry[1]
+                # L2: Disk cache (persistent across restarts)
+                disk = await _disk_cache_get(cache_key)
+                if disk is not None:
+                    _cache[cache_key] = (time.monotonic(), disk)
+                    return disk
                 # Cache miss — fetch while holding the lock.
                 # Other tasks for the same key block here; when they enter, the
                 # result will be in the cache.
                 result = await self._fetch_from_providers(method_name, ticker, label)
                 _cache[cache_key] = (time.monotonic(), result)
+                await _disk_cache_set(cache_key, result)
                 return result
 
         return await self._fetch_from_providers(method_name, ticker, label)

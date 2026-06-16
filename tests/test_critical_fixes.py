@@ -220,6 +220,24 @@ class TestExecutorDispatch:
 # 4. FinancialDataRouter
 # ─────────────────────────────────────────────
 class TestFinancialDataRouter:
+    def setup_method(self):
+        from jasper.tools.financials import _cache, _cache_locks, _DISK_CACHE_DB
+
+        _cache.clear()
+        _cache_locks.clear()
+        # Clear the aiosqlite disk cache for test isolation
+        try:
+            import aiosqlite, asyncio
+
+            async def _clear():
+                async with aiosqlite.connect(str(_DISK_CACHE_DB)) as db:
+                    await db.execute("DROP TABLE IF EXISTS cache")
+                    await db.commit()
+
+            asyncio.run(_clear())
+        except Exception:
+            pass
+
     @pytest.mark.asyncio
     async def test_fetch_income_statement_first_provider_wins(self):
         from jasper.tools.financials import FinancialDataRouter

@@ -22,6 +22,7 @@ from ..agent.synthesizer import Synthesizer
 from ..tools.financials import FinancialDataRouter
 from ..tools.providers.alpha_vantage import AlphaVantageClient
 from ..tools.providers.yfinance import YFinanceClient
+from ..tools.providers.fmp import FMPClient
 from ..core.llm import get_llm_singleton
 from ..observability.logger import SessionLogger
 from ..core.state import Jasperstate, FinalReport
@@ -562,7 +563,15 @@ async def execute_research(query: str, console: Console) -> Jasperstate:
             api_key=os.getenv("ALPHA_VANTAGE_API_KEY", "demo")
         )
         yfinance_client = YFinanceClient()
-        router = FinancialDataRouter(providers=[av_client, yfinance_client])
+        fmp_client = (
+            FMPClient(api_key=os.getenv("FMP_API_KEY", ""))
+            if os.getenv("FMP_API_KEY")
+            else None
+        )
+        providers = [av_client, yfinance_client]
+        if fmp_client:
+            providers.insert(1, fmp_client)  # Between AV and yfinance
+        router = FinancialDataRouter(providers=providers)
 
         controller = JasperController(
             Planner(llm, logger=logger),

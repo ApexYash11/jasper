@@ -45,12 +45,21 @@ async def run_research(query: str) -> "Optional[FinalReport]":
     from .tools.financials import FinancialDataRouter
     from .tools.providers.alpha_vantage import AlphaVantageClient
     from .tools.providers.yfinance import YFinanceClient
+    from .tools.providers.fmp import FMPClient
     from .core.llm import get_llm
 
     llm = get_llm(temperature=0)
     av_client = AlphaVantageClient(api_key=os.getenv("ALPHA_VANTAGE_API_KEY", "demo"))
     yf_client = YFinanceClient()
-    router = FinancialDataRouter(providers=[av_client, yf_client])
+    fmp_client = (
+        FMPClient(api_key=os.getenv("FMP_API_KEY", ""))
+        if os.getenv("FMP_API_KEY")
+        else None
+    )
+    providers = [av_client, yf_client]
+    if fmp_client:
+        providers.insert(1, fmp_client)
+    router = FinancialDataRouter(providers=providers)
 
     controller = JasperController(
         planner=Planner(llm),
