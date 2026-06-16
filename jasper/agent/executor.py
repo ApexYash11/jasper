@@ -1,4 +1,4 @@
-﻿from ..core.state import Task, Jasperstate
+from ..core.state import Task, Jasperstate
 from ..tools.financials import FinancialDataRouter, FinancialDataError
 from ..observability.logger import SessionLogger
 
@@ -12,7 +12,9 @@ _QUOTE_TOOLS = {"realtime_quote", "key_metrics"}
 # --- Executor ---
 # Executes research tasks using available tools and data providers
 class Executor:
-    def __init__(self, financial_router: FinancialDataRouter, logger: SessionLogger | None = None):
+    def __init__(
+        self, financial_router: FinancialDataRouter, logger: SessionLogger | None = None
+    ):
         self.financial_router = financial_router
         self.logger = logger or SessionLogger()
 
@@ -32,7 +34,10 @@ class Executor:
         return True
 
     async def _execute_with_retries(
-        self, state: Jasperstate, task: Task, fetch_coro_factory,
+        self,
+        state: Jasperstate,
+        task: Task,
+        fetch_coro_factory,
         skip_fiscal_validation: bool = False,
     ) -> None:
         """Run a fetch coroutine with retry logic, updating task state."""
@@ -60,7 +65,9 @@ class Executor:
 
                 state.task_results[task.id] = result
                 task.status = "completed"
-                self.logger.log("TASK_EXECUTED", {"task_id": task.id, "status": task.status})
+                self.logger.log(
+                    "TASK_EXECUTED", {"task_id": task.id, "status": task.status}
+                )
                 return
 
             except FinancialDataError as fd_err:
@@ -102,31 +109,37 @@ class Executor:
 
             if tool in _INCOME_TOOLS:
                 await self._execute_with_retries(
-                    state, task,
-                    lambda: self.financial_router.fetch_income_statement(ticker)
+                    state,
+                    task,
+                    lambda t=ticker: self.financial_router.fetch_income_statement(t),
                 )
 
             elif tool in _BALANCE_TOOLS:
                 await self._execute_with_retries(
-                    state, task,
-                    lambda: self.financial_router.fetch_balance_sheet(ticker)
+                    state,
+                    task,
+                    lambda t=ticker: self.financial_router.fetch_balance_sheet(t),
                 )
 
             elif tool in _CASH_FLOW_TOOLS:
                 await self._execute_with_retries(
-                    state, task,
-                    lambda: self.financial_router.fetch_cash_flow(ticker)
+                    state,
+                    task,
+                    lambda t=ticker: self.financial_router.fetch_cash_flow(t),
                 )
 
             elif tool in _QUOTE_TOOLS:
                 await self._execute_with_retries(
-                    state, task,
-                    lambda: self.financial_router.fetch_realtime_quote(ticker),
+                    state,
+                    task,
+                    lambda t=ticker: self.financial_router.fetch_realtime_quote(t),
                     skip_fiscal_validation=True,
                 )
 
             else:
-                _all_tools = sorted(_INCOME_TOOLS | _BALANCE_TOOLS | _CASH_FLOW_TOOLS | _QUOTE_TOOLS)
+                _all_tools = sorted(
+                    _INCOME_TOOLS | _BALANCE_TOOLS | _CASH_FLOW_TOOLS | _QUOTE_TOOLS
+                )
                 raise ValueError(
                     f"Unknown tool '{tool}' for task '{task.description}'. "
                     f"Valid tools: {', '.join(_all_tools)}."

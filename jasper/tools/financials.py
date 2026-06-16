@@ -1,4 +1,5 @@
 from typing import Any, List, Dict
+import asyncio
 import os
 import time
 from .exceptions import DataProviderError
@@ -14,6 +15,13 @@ FinancialDataError = DataProviderError
 _CACHE_TTL = int(os.getenv("JASPER_CACHE_TTL_SECS", "900"))  # 15 min default
 
 _cache: Dict[str, tuple] = {}  # key -> (timestamp, data)
+_cache_locks: Dict[str, asyncio.Lock] = {}
+
+
+def _get_cache_lock(key: str) -> asyncio.Lock:
+    if key not in _cache_locks:
+        _cache_locks[key] = asyncio.Lock()
+    return _cache_locks[key]
 
 
 # Common exchange-symbol aliases for popular Indian equities.
@@ -60,20 +68,22 @@ def _ticker_candidates(ticker: str) -> List[str]:
     return candidates
 
 
-def _cache_get(key: str):
+async def _cache_get_async(key: str):
     """Return cached value if still fresh, else None (evicting stale entries)."""
-    entry = _cache.get(key)
-    if entry is None:
+    async with _get_cache_lock(key):
+        entry = _cache.get(key)
+        if entry is None:
+            return None
+        if (time.monotonic() - entry[0]) < _CACHE_TTL:
+            return entry[1]
+        del _cache[key]  # evict stale entry to prevent unbounded growth
         return None
-    if (time.monotonic() - entry[0]) < _CACHE_TTL:
-        return entry[1]
-    del _cache[key]  # evict stale entry to prevent unbounded growth
-    return None
 
 
-def _cache_set(key: str, data) -> None:
+async def _cache_set_async(key: str, data) -> None:
     """Store data in the in-memory cache."""
-    _cache[key] = (time.monotonic(), data)
+    async with _get_cache_lock(key):
+        _cache[key] = (time.monotonic(), data)
 
 
 # --- Financial Data Router ---
@@ -83,18 +93,8 @@ class FinancialDataRouter:
     def __init__(self, providers: List[Any]):
         self.providers = providers
 
-    async def _fetch_with_fallback(
-        self, method_name: str, ticker: str, label: str
-    ):
-        """Generic fallback loop with in-memory caching: try each provider in order."""
-        # Real-time quotes must never be served from a stale cache
-        use_cache = method_name != "realtime_quote"
-        cache_key = f"{method_name}:{ticker.upper()}"
-        if use_cache:
-            cached = _cache_get(cache_key)
-            if cached is not None:
-                return cached
-
+    async def _fetch_from_providers(self, method_name: str, ticker: str, label: str):
+        """Try each provider in order until one succeeds. No caching."""
         errors = []
         symbol_candidates = _ticker_candidates(ticker)
         if not symbol_candidates:
@@ -106,10 +106,7 @@ class FinancialDataRouter:
                 continue
             for symbol in symbol_candidates:
                 try:
-                    result = await method(symbol)
-                    if use_cache:
-                        _cache_set(cache_key, result)
-                    return result
+                    return await method(symbol)
                 except Exception as e:
                     errors.append(f"{type(provider).__name__}({symbol}): {e}")
 
@@ -120,15 +117,37 @@ class FinancialDataRouter:
             f"Verify the ticker is valid (e.g. AAPL, RELIANCE.NS, INFY.NS)."
         )
 
+    async def _fetch_with_fallback(self, method_name: str, ticker: str, label: str):
+        """Generic fallback loop with in-memory caching: try each provider in order.
+
+        Uses per-key asyncio.Lock to ensure that concurrent tasks fetching the same
+        ticker produce only one API call — the rest block and get the cached result.
+        """
+        use_cache = method_name != "realtime_quote"
+        cache_key = f"{method_name}:{ticker.upper()}"
+
+        if use_cache:
+            async with _get_cache_lock(cache_key):
+                # Check cache under lock (fast path for cached data)
+                entry = _cache.get(cache_key)
+                if entry is not None and (time.monotonic() - entry[0]) < _CACHE_TTL:
+                    return entry[1]
+                # Cache miss — fetch while holding the lock.
+                # Other tasks for the same key block here; when they enter, the
+                # result will be in the cache.
+                result = await self._fetch_from_providers(method_name, ticker, label)
+                _cache[cache_key] = (time.monotonic(), result)
+                return result
+
+        return await self._fetch_from_providers(method_name, ticker, label)
+
     async def fetch_income_statement(self, ticker: str):
         return await self._fetch_with_fallback(
             "income_statement", ticker, "income statement"
         )
 
     async def fetch_balance_sheet(self, ticker: str):
-        return await self._fetch_with_fallback(
-            "balance_sheet", ticker, "balance sheet"
-        )
+        return await self._fetch_with_fallback("balance_sheet", ticker, "balance sheet")
 
     async def fetch_cash_flow(self, ticker: str):
         return await self._fetch_with_fallback(
