@@ -4,6 +4,7 @@ import os
 import re
 import time
 import sys
+import signal
 import platform
 from datetime import datetime
 from typing import Optional
@@ -24,6 +25,7 @@ from ..tools.providers.yfinance import YFinanceClient
 from ..core.llm import get_llm_singleton
 from ..observability.logger import SessionLogger
 from ..core.state import Jasperstate, FinalReport
+from ..core.config import JASPER_HOME
 # PDF export imports are lazy (inside functions) to keep core install lightweight
 
 # Import UI components
@@ -58,7 +60,7 @@ app = typer.Typer(help="Institutional Financial research agent.", no_args_is_hel
 _last_report: Optional[FinalReport] = None
 
 # Cross-process report persistence
-_CACHE_DIR = Path.home() / ".jasper"
+_CACHE_DIR = JASPER_HOME
 _LAST_REPORT_PATH = _CACHE_DIR / "last_report.json"
 
 
@@ -266,16 +268,16 @@ class RichLogger(SessionLogger):
                         f"✔ {desc}{duration_text}",
                         status="success",
                     )
-                    update_synthesis_status(
-                        self.execution_node, f"✅ Completed: {desc[:60]}{duration_text}"
-                    )
+                update_synthesis_status(
+                    self.execution_node, f"✅ Completed: {desc[:60].rstrip()}{duration_text}"
+                )
                 else:
                     append_task_to_node(
                         self.execution_node, f"✖ {desc}{duration_text}", status="failed"
                     )
-                    update_synthesis_status(
-                        self.execution_node, f"⚠️ Failed: {desc[:60]}{duration_text}"
-                    )
+                update_synthesis_status(
+                    self.execution_node, f"⚠️ Failed: {desc[:60].rstrip()}{duration_text}"
+                )
 
             # Force update for task completion (always show immediately)
             if self.live:
@@ -477,7 +479,10 @@ class RichLogger(SessionLogger):
             "profitability",
         ]
 
-        # Check if this is part of a key section
+        # Check if this is a repeated markdown heading at the start
+        stripped = text.strip()
+        if re.match(r'^#{1,3}\s+\S', stripped):
+            return True  # Repeated headings are not preview-worthy
         for section in key_sections:
             if section in text_lower:
                 return False  # This is valuable content
@@ -566,7 +571,13 @@ async def execute_research(query: str, console: Console) -> Jasperstate:
         )
 
         # Run Controller
-        state = await controller.run(query)
+        try:
+            state = await controller.run(query)
+        except asyncio.CancelledError:
+            return
+        except KeyboardInterrupt:
+            console.print("\n[yellow]Interrupted by user[/yellow]")
+            return
 
     # After Live block, show results
     await asyncio.sleep(0.2)  # Short pause to give report "weight"

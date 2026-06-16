@@ -1,7 +1,12 @@
 from dotenv import load_dotenv
 import os
+from pathlib import Path
 
 load_dotenv()
+
+# Shared Jasper home directory — single source of truth for all disk paths
+JASPER_HOME = Path.home() / ".jasper"
+
 
 def get_llm_api_key() -> str:
     """Get LLM API key from environment."""
@@ -13,11 +18,13 @@ def get_llm_api_key() -> str:
         )
     return key
 
+
 def get_financial_api_key() -> str:
     """Get financial data provider API key from environment."""
     key = os.getenv("ALPHA_VANTAGE_API_KEY", "demo")
     if key == "demo":
         import warnings
+
         warnings.warn(
             "\n"
             "╔══ ALPHA VANTAGE DEMO KEY ACTIVE ══════════════════════════════╗\n"
@@ -33,6 +40,7 @@ def get_financial_api_key() -> str:
         )
     return key
 
+
 def get_config():
     return {
         "LLM_API_KEY": get_llm_api_key(),
@@ -40,14 +48,15 @@ def get_config():
         "ENV": os.getenv("ENV", "dev"),
     }
 
+
 # --- JASPER UI CONFIGURATION ---
 
 THEME = {
     "Background": "#000000",
     "Primary Text": "#E0E0E0",
     "Accent": "#00EA78",  # Phosphor Green
-    "Brand": "#00EA78",   # Phosphor Green
-    "Success": "#00EA78", # Phosphor Green
+    "Brand": "#00EA78",  # Phosphor Green
+    "Success": "#00EA78",  # Phosphor Green
     "Warning": "#FFB302",
     "Error": "#FF007F",
 }
