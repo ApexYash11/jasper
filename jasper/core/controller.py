@@ -204,7 +204,7 @@ class JasperController:
         if not unique_tickers:
             unique_tickers = []
         if not sources:
-            sources = {"SEC EDGAR", "Financial Data Providers"}
+            sources = {"Alpha Vantage", "yfinance"}
 
         # Forensic Log construction
         evidence_log = []

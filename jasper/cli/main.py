@@ -668,7 +668,7 @@ async def execute_research(query: str, console: Console) -> Jasperstate:
         if not unique_tickers:
             unique_tickers = ["Unknown Entity"]
         if not sources:
-            sources = {"SEC EDGAR"}  # Default fallback source
+            sources = {"Alpha Vantage", "yfinance"}  # Default fallback sources
 
         # v0.2.0: Forensic Rendering if report exists
         if state.report:
