@@ -10,11 +10,11 @@ JASPER_HOME = Path.home() / ".jasper"
 
 def get_llm_api_key() -> str:
     """Get LLM API key from environment."""
-    key = os.getenv("OPENROUTER_API_KEY")
+    key = os.getenv("GROQ_API_KEY")
     if not key:
         raise ValueError(
-            "OPENROUTER_API_KEY not set. "
-            "Get one at https://openrouter.ai/keys, then add to .env or export as env var."
+            "GROQ_API_KEY not set. "
+            "Get one at https://console.groq.com/keys, then add to .env or export as env var."
         )
     return key
 

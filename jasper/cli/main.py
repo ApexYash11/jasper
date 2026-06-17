@@ -134,7 +134,6 @@ class RichLogger(SessionLogger):
         # Tier 2 (print mode) support
         self.console = board_context.get("console")
         self.is_live = self.live is not None
-        self.synthesis_print_buffer = ""
         self._synthesis_started_printed = False  # Guard against duplicate prints
 
         # Track task data for reference
@@ -147,7 +146,7 @@ class RichLogger(SessionLogger):
 
         # Keep streaming UI concise: never show full generated output in-flight
         self._preview_char_limit = 120
-        self._preview_update_every_chars = 60
+        self._preview_update_every_chars = 120
 
         # Debouncing: track last update time to avoid excessive Live refreshes
         self._last_update_time = 0
@@ -314,8 +313,7 @@ class RichLogger(SessionLogger):
                 if not self._synthesis_started_printed:
                     self.console.print(
                         f"[{THEME['Accent']}][SYNTHESIS][/{THEME['Accent']}] "
-                        f"Compiling executive report",
-                        end="",
+                        f"Compiling executive report..."
                     )
                     self._synthesis_started_printed = True
                 return
@@ -444,19 +442,48 @@ class RichLogger(SessionLogger):
     def _handle_synthesis_print(self, token: str) -> None:
         """
         Tier 2 (plain PowerShell) synthesis progress display.
-        Prints accumulated tokens at sentence boundaries or every ~80 chars.
+        Shows a single-line preview that updates in place via raw stdout.
+        Full synthesis is rendered in the report panel after completion.
         """
-        self.synthesis_print_buffer += token
+        self.synthesis_buffer += token
 
-        is_sentence_end = token.rstrip().endswith((".", "!", "?", "\n"))
-        is_long_enough = len(self.synthesis_print_buffer) >= 80
+        # Time throttle: don't update faster than ~12fps
+        now = time.perf_counter()
+        if now - self._last_update_time < self._min_update_interval:
+            return
+        self._last_update_time = now
 
-        if is_sentence_end or is_long_enough:
-            self.console.print(self.synthesis_print_buffer, end="", flush=True)
-            self.synthesis_print_buffer = ""
+        # Char throttle: update every ~120 chars of progress
+        if (
+            len(self.synthesis_buffer) - self._last_stream_update_chars
+            < self._preview_update_every_chars
+        ):
+            return
 
-            if is_sentence_end:
-                self.console.print("")
+        # Build a short sanitized preview
+        normalized = " ".join(self.synthesis_buffer.split()).strip()
+        if not normalized or normalized == self._last_preview_text:
+            return
+
+        if len(normalized) > self._preview_char_limit:
+            preview = normalized[-self._preview_char_limit :]
+        else:
+            preview = normalized
+
+        # Strip markdown and table noise
+        clean = preview.replace("**", "").replace("##", "")
+        # Drop table rows entirely (lines with many | characters)
+        if clean.count("|") > 2:
+            return
+        clean = clean.replace("|", "·").replace("  ", " ")
+        clean = re.sub(r"\s+", " ", clean).strip()[:78]
+        if not clean:
+            return
+
+        sys.stdout.write(f"\r  ✍️  {clean}▌")
+        sys.stdout.flush()
+        self._last_preview_text = normalized
+        self._last_stream_update_chars = len(self.synthesis_buffer)
 
     def _is_low_value_content(self, text: str) -> bool:
         """

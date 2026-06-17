@@ -59,8 +59,12 @@ class Validator:
         # Handle case where plan is empty (qualitative queries with no financial data fetch)
         if not state.plan:
             # QUALITATIVE MODE: No financial data fetching occurred.
+            # Vary confidence by query complexity (longer = more specific = higher)
+            query_len = len(state.query)
+            base = 0.65
+            modifier = min(0.15, query_len / 500 * 0.10)
             data_coverage = 1.0
-            data_quality = 0.85
+            data_quality = round(base + modifier, 2)
             inference_strength = 0.8
         elif completed_count == total_count:
             # Full success
