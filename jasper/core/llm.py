@@ -4,32 +4,26 @@ from langchain_openai import ChatOpenAI
 from pydantic import SecretStr
 from .config import get_llm_api_key
 
+
 def get_llm(temperature: float = 0) -> ChatOpenAI:
     """
-    Get a LangChain-compatible LLM configured with OpenRouter.
-    OpenRouter provides access to multiple models through an OpenAI-compatible API.
-    
+    Get a LangChain-compatible LLM configured with Groq.
+    Groq provides fast inference through an OpenAI-compatible API.
+
     Args:
         temperature: Controls randomness (0 = deterministic, 1 = more random)
-    
+
     Returns:
-        Configured ChatOpenAI instance pointing to OpenRouter
+        Configured ChatOpenAI instance pointing to Groq
     """
     api_key = get_llm_api_key()  # Raises ValueError if not set
-    # Default: Minimax M2.5 (free, fast, reliable JSON).
-    # Override via OPENROUTER_MODEL env var for a different model.
-    # Recommended for production: openai/gpt-4o-mini or anthropic/claude-haiku
-    model = os.getenv("OPENROUTER_MODEL", "minimax/minimax-m2.5:free")
+    model = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 
     return ChatOpenAI(
         model=model,
         temperature=temperature,
         api_key=SecretStr(api_key),
-        base_url="https://openrouter.ai/api/v1",
-        default_headers={
-            "HTTP-Referer": "https://jasper.local",
-            "X-Title": "Jasper Finance",
-        },
+        base_url="https://api.groq.com/openai/v1",
     )
 
 

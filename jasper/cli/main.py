@@ -1,8 +1,10 @@
 import typer
 import asyncio
 import os
+import re
 import time
 import sys
+import signal
 import platform
 from datetime import datetime
 from typing import Optional
@@ -15,14 +17,16 @@ from pathlib import Path
 from ..core.controller import JasperController
 from ..agent.planner import Planner
 from ..agent.executor import Executor
-from ..agent.validator import validator
+from ..agent.validator import Validator
 from ..agent.synthesizer import Synthesizer
 from ..tools.financials import FinancialDataRouter
 from ..tools.providers.alpha_vantage import AlphaVantageClient
 from ..tools.providers.yfinance import YFinanceClient
+from ..tools.providers.fmp import FMPClient
 from ..core.llm import get_llm_singleton
 from ..observability.logger import SessionLogger
 from ..core.state import Jasperstate, FinalReport
+from ..core.config import JASPER_HOME
 # PDF export imports are lazy (inside functions) to keep core install lightweight
 
 # Import UI components
@@ -57,7 +61,7 @@ app = typer.Typer(help="Institutional Financial research agent.", no_args_is_hel
 _last_report: Optional[FinalReport] = None
 
 # Cross-process report persistence
-_CACHE_DIR = Path.home() / ".jasper"
+_CACHE_DIR = JASPER_HOME
 _LAST_REPORT_PATH = _CACHE_DIR / "last_report.json"
 
 
@@ -130,9 +134,6 @@ class RichLogger(SessionLogger):
         # Tier 2 (print mode) support
         self.console = board_context.get("console")
         self.is_live = self.live is not None
-        self.synthesis_print_buffer = ""
-        self._last_synthesis_print = 0.0
-        self._synthesis_dot_count = 0
         self._synthesis_started_printed = False  # Guard against duplicate prints
 
         # Track task data for reference
@@ -144,12 +145,12 @@ class RichLogger(SessionLogger):
         self._task_started_at = {}
 
         # Keep streaming UI concise: never show full generated output in-flight
-        self._preview_char_limit = 160
-        self._preview_update_every_chars = 300
+        self._preview_char_limit = 120
+        self._preview_update_every_chars = 120
 
         # Debouncing: track last update time to avoid excessive Live refreshes
         self._last_update_time = 0
-        self._min_update_interval = 0.2  # 200ms minimum between Live updates
+        self._min_update_interval = 0.08  # 80ms, ~12fps ceiling
 
     def _should_update_live(self) -> bool:
         """Check if enough time has passed since last Live update."""
@@ -268,14 +269,16 @@ class RichLogger(SessionLogger):
                         status="success",
                     )
                     update_synthesis_status(
-                        self.execution_node, f"✅ Completed: {desc[:60]}{duration_text}"
+                        self.execution_node,
+                        f"✅ Completed: {desc[:60].rstrip()}{duration_text}",
                     )
                 else:
                     append_task_to_node(
                         self.execution_node, f"✖ {desc}{duration_text}", status="failed"
                     )
                     update_synthesis_status(
-                        self.execution_node, f"⚠️ Failed: {desc[:60]}{duration_text}"
+                        self.execution_node,
+                        f"⚠️ Failed: {desc[:60].rstrip()}{duration_text}",
                     )
 
             # Force update for task completion (always show immediately)
@@ -310,12 +313,9 @@ class RichLogger(SessionLogger):
                 if not self._synthesis_started_printed:
                     self.console.print(
                         f"[{THEME['Accent']}][SYNTHESIS][/{THEME['Accent']}] "
-                        f"Compiling executive report",
-                        end="",
+                        f"Compiling executive report..."
                     )
                     self._synthesis_started_printed = True
-                self._synthesis_dot_count = 0
-                self._last_synthesis_print = time.perf_counter()
                 return
             update_synthesis_status(
                 self.synthesis_node, "✍️  Compiling executive report..."
@@ -417,7 +417,13 @@ class RichLogger(SessionLogger):
                 return
 
             if len(normalized) > self._preview_char_limit:
-                preview = "..." + normalized[-self._preview_char_limit :]
+                sentences = re.split(r"(?<=[.!?])\s+", normalized)
+                if len(sentences) > 1 and len(sentences[-1]) > 10:
+                    preview = sentences[-1][:120]
+                elif len(sentences) > 1:
+                    preview = sentences[-2][:120] + " " + sentences[-1]
+                else:
+                    preview = normalized[-self._preview_char_limit :]
             else:
                 preview = normalized
 
@@ -436,27 +442,48 @@ class RichLogger(SessionLogger):
     def _handle_synthesis_print(self, token: str) -> None:
         """
         Tier 2 (plain PowerShell) synthesis progress display.
-        Prints dots every 2 seconds to show liveness without
-        flooding the terminal.
+        Shows a single-line preview that updates in place via raw stdout.
+        Full synthesis is rendered in the report panel after completion.
         """
-        self.synthesis_print_buffer += token
+        self.synthesis_buffer += token
 
-        # Cap buffer to avoid unbounded growth
-        if len(self.synthesis_print_buffer) > 500:
-            self.synthesis_print_buffer = self.synthesis_print_buffer[-500:]
-
+        # Time throttle: don't update faster than ~12fps
         now = time.perf_counter()
-        elapsed = now - self._last_synthesis_print
+        if now - self._last_update_time < self._min_update_interval:
+            return
+        self._last_update_time = now
 
-        # Print a dot every 2 seconds to show progress
-        if elapsed >= 2.0:
-            self.console.print(".", end="", flush=True)
-            self._synthesis_dot_count += 1
-            self._last_synthesis_print = now
+        # Char throttle: update every ~120 chars of progress
+        if (
+            len(self.synthesis_buffer) - self._last_stream_update_chars
+            < self._preview_update_every_chars
+        ):
+            return
 
-            # Newline every 20 dots to prevent one very long line
-            if self._synthesis_dot_count % 20 == 0:
-                self.console.print("")
+        # Build a short sanitized preview
+        normalized = " ".join(self.synthesis_buffer.split()).strip()
+        if not normalized or normalized == self._last_preview_text:
+            return
+
+        if len(normalized) > self._preview_char_limit:
+            preview = normalized[-self._preview_char_limit :]
+        else:
+            preview = normalized
+
+        # Strip markdown and table noise
+        clean = preview.replace("**", "").replace("##", "")
+        # Drop table rows entirely (lines with many | characters)
+        if clean.count("|") > 2:
+            return
+        clean = clean.replace("|", "·").replace("  ", " ")
+        clean = re.sub(r"\s+", " ", clean).strip()[:78]
+        if not clean:
+            return
+
+        sys.stdout.write(f"\r  ✍️  {clean}▌")
+        sys.stdout.flush()
+        self._last_preview_text = normalized
+        self._last_stream_update_chars = len(self.synthesis_buffer)
 
     def _is_low_value_content(self, text: str) -> bool:
         """
@@ -482,7 +509,10 @@ class RichLogger(SessionLogger):
             "profitability",
         ]
 
-        # Check if this is part of a key section
+        # Check if this is a repeated markdown heading at the start
+        stripped = text.strip()
+        if re.match(r"^#{1,3}\s+\S", stripped):
+            return True  # Repeated headings are not preview-worthy
         for section in key_sections:
             if section in text_lower:
                 return False  # This is valuable content
@@ -535,7 +565,7 @@ async def execute_research(query: str, console: Console) -> Jasperstate:
         use_live = is_tty and not is_vscode and not is_dumb
 
     if use_live:
-        live_context = Live(board_panel, refresh_per_second=2, console=console)
+        live_context = Live(board_panel, refresh_per_second=10, console=console)
     else:
         # Fallback: simple dummy context that doesn't render live updates
         from contextlib import nullcontext
@@ -560,18 +590,34 @@ async def execute_research(query: str, console: Console) -> Jasperstate:
             api_key=os.getenv("ALPHA_VANTAGE_API_KEY", "demo")
         )
         yfinance_client = YFinanceClient()
-        router = FinancialDataRouter(providers=[av_client, yfinance_client])
+        fmp_client = (
+            FMPClient(api_key=os.getenv("FMP_API_KEY", ""))
+            if os.getenv("FMP_API_KEY")
+            else None
+        )
+        providers = [av_client, yfinance_client]
+        if fmp_client:
+            providers.insert(1, fmp_client)  # Between AV and yfinance
+        router = FinancialDataRouter(providers=providers)
 
         controller = JasperController(
             Planner(llm, logger=logger),
             Executor(router, logger=logger),
-            validator(logger=logger),
+            Validator(logger=logger),
             Synthesizer(llm, logger=logger),
             logger=logger,
         )
 
         # Run Controller
-        state = await controller.run(query)
+        try:
+            state = await controller.run(query)
+        except asyncio.CancelledError:
+            raise
+        except KeyboardInterrupt:
+            console.print("\n[yellow]Interrupted by user[/yellow]")
+            state = Jasperstate(query=query)
+            state.status = "Failed"
+            state.error = "Interrupted by user"
 
     # After Live block, show results
     await asyncio.sleep(0.2)  # Short pause to give report "weight"
@@ -668,7 +714,7 @@ async def execute_research(query: str, console: Console) -> Jasperstate:
         if not unique_tickers:
             unique_tickers = ["Unknown Entity"]
         if not sources:
-            sources = {"SEC EDGAR"}  # Default fallback source
+            sources = {"Alpha Vantage", "yfinance"}  # Default fallback sources
 
         # v0.2.0: Forensic Rendering if report exists
         if state.report:

@@ -29,22 +29,8 @@ jobs:
         pip install -e ".[dev]"
 
     - name: Lint with ruff
-      shell: bash
       run: |
-        echo "=== Debug: Environment ==="
-        echo "PATH=$PATH"
-        echo "Python: $(which python || echo 'NOT FOUND')"
-        echo "Python3: $(which python3 || echo 'NOT FOUND')"
-        echo "Python version: $(python --version 2>&1 || python3 --version 2>&1)"
-        echo "=== Debug: Try installing ruff ==="
-        pip install ruff 2>&1 || python -m pip install ruff 2>&1
-        echo "=== Debug: Locate ruff ==="
-        which ruff 2>&1 || echo "ruff binary not on PATH"
-        ruff --version 2>&1 || echo "ruff binary failed"
-        echo "=== Debug: Try python -m ruff ==="
-        python -m ruff --version 2>&1 || python3 -m ruff --version 2>&1
-        echo "=== Run ruff check ==="
-        ruff check . || python -m ruff check . || python3 -m ruff check .
+        python -m ruff check .
 
     - name: Run core tests (excludes PDF export tests)
       run: |

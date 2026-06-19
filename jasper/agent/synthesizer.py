@@ -15,7 +15,9 @@ class Synthesizer:
         self.logger = logger or SessionLogger()
 
     @staticmethod
-    def _truncate_context(data_context: str, max_chars: int = _MAX_CONTEXT_CHARS) -> str:
+    def _truncate_context(
+        data_context: str, max_chars: int = _MAX_CONTEXT_CHARS
+    ) -> str:
         """
         Trim the data_context string to max_chars characters.
         Tries to cut at a natural boundary (double newline) and appends a note.
@@ -116,13 +118,15 @@ class Synthesizer:
         # Stream tokens to callback if provided, otherwise collect silently
         full_response = ""
         try:
-            async for chunk in chain.astream({
-                "query": state.query,
-                "data": data_context,
-                "report_mode": state.report_mode.value,
-                "comparison_note": comparison_note,
-            }):
-                token = chunk.content if hasattr(chunk, 'content') else str(chunk)
+            async for chunk in chain.astream(
+                {
+                    "query": state.query,
+                    "data": data_context,
+                    "report_mode": state.report_mode.value,
+                    "comparison_note": comparison_note,
+                }
+            ):
+                token = chunk.content if hasattr(chunk, "content") else str(chunk)
                 full_response += token
                 if token_callback:
                     callback_result = token_callback(token)
@@ -131,13 +135,24 @@ class Synthesizer:
         except Exception as e:
             # If streaming fails (some models don't support it), fall back to ainvoke
             self.logger.log("SYNTHESIS_STREAM_FALLBACK", {"error": str(e)})
-            response = await chain.ainvoke({
-                "query": state.query,
-                "data": data_context,
-                "report_mode": state.report_mode.value,
-                "comparison_note": comparison_note,
-            })
+            # Signal to UI that we're in non-streaming mode
+            if token_callback:
+                callback_result = token_callback(
+                    "[non-streaming model — generating full response, please wait...]"
+                )
+                if inspect.isawaitable(callback_result):
+                    await callback_result
+            response = await chain.ainvoke(
+                {
+                    "query": state.query,
+                    "data": data_context,
+                    "report_mode": state.report_mode.value,
+                    "comparison_note": comparison_note,
+                }
+            )
             full_response = response.content
 
-        self.logger.log("SYNTHESIS_COMPLETED", {"confidence": state.validation.confidence})
+        self.logger.log(
+            "SYNTHESIS_COMPLETED", {"confidence": state.validation.confidence}
+        )
         return full_response

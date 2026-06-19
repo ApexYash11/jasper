@@ -1,12 +1,12 @@
-﻿from ..core.state import Jasperstate, validationresult, ConfidenceBreakdown
+from ..core.state import Jasperstate, ValidationResult, ConfidenceBreakdown
 from ..observability.logger import SessionLogger
 
 
-class validator:
+class Validator:
     def __init__(self, logger: SessionLogger | None = None):
         self.logger = logger or SessionLogger()
 
-    def validate(self, state: Jasperstate) -> validationresult:
+    def validate(self, state: Jasperstate) -> ValidationResult:
         self.logger.log("VALIDATION_STARTED", {"plan_length": len(state.plan)})
         issues = []
         hard_failures = []  # task errors that can never be recovered
@@ -23,7 +23,9 @@ class validator:
         for task in state.plan:
             if task.id not in state.task_results:
                 if task.status == "completed":
-                    issues.append(f"Missing data for completed task: {task.description}")
+                    issues.append(
+                        f"Missing data for completed task: {task.description}"
+                    )
             elif not state.task_results[task.id]:
                 issues.append(f"Empty data for task: {task.description}")
 
@@ -46,18 +48,23 @@ class validator:
             # Partial success: enough data to synthesise with caveats
             is_valid = True
             issues = hard_failures  # Surface only hard failures, not missing tasks
-            self.logger.log("VALIDATION_PARTIAL_SUCCESS", {
-                "completed": completed_count, "total": total_count
-            })
+            self.logger.log(
+                "VALIDATION_PARTIAL_SUCCESS",
+                {"completed": completed_count, "total": total_count},
+            )
         else:
             is_valid = False
-        
+
         # Calculate Confidence Breakdown
         # Handle case where plan is empty (qualitative queries with no financial data fetch)
         if not state.plan:
             # QUALITATIVE MODE: No financial data fetching occurred.
+            # Vary confidence by query complexity (longer = more specific = higher)
+            query_len = len(state.query)
+            base = 0.65
+            modifier = min(0.15, query_len / 500 * 0.10)
             data_coverage = 1.0
-            data_quality = 0.85
+            data_quality = round(base + modifier, 2)
             inference_strength = 0.8
         elif completed_count == total_count:
             # Full success
@@ -83,22 +90,29 @@ class validator:
         # Calculate confidence
         # Major issues reduce confidence, but don't zero it out completely
         overall_confidence = round(data_coverage * data_quality * inference_strength, 2)
-        
+
         breakdown = ConfidenceBreakdown(
             data_coverage=round(data_coverage, 2),
             data_quality=round(data_quality, 2),
             inference_strength=inference_strength,
-            overall=overall_confidence
+            overall=overall_confidence,
         )
 
-        result = validationresult(
+        result = ValidationResult(
             is_valid=is_valid,
             issues=issues,
             confidence=overall_confidence,
-            breakdown=breakdown
+            breakdown=breakdown,
         )
 
-        self.logger.log("VALIDATION_COMPLETED", {"is_valid": result.is_valid, "issues": result.issues, "confidence": overall_confidence})
+        self.logger.log(
+            "VALIDATION_COMPLETED",
+            {
+                "is_valid": result.is_valid,
+                "issues": result.issues,
+                "confidence": overall_confidence,
+            },
+        )
         return result
 
     def _validate_financial_consistency(self, state: Jasperstate, issues: list):

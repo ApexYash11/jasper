@@ -1,4 +1,9 @@
-__version__ = "1.1.7"
+from importlib.metadata import version as _pkg_version, PackageNotFoundError
+
+try:
+    __version__ = _pkg_version("jasper-finance")
+except PackageNotFoundError:
+    __version__ = "0.0.0-dev"
 
 from typing import TYPE_CHECKING, Optional
 
@@ -35,22 +40,31 @@ async def run_research(query: str) -> "Optional[FinalReport]":
     from .core.controller import JasperController
     from .agent.planner import Planner
     from .agent.executor import Executor
-    from .agent.validator import validator as ValidatorClass
+    from .agent.validator import Validator
     from .agent.synthesizer import Synthesizer
     from .tools.financials import FinancialDataRouter
     from .tools.providers.alpha_vantage import AlphaVantageClient
     from .tools.providers.yfinance import YFinanceClient
+    from .tools.providers.fmp import FMPClient
     from .core.llm import get_llm
 
     llm = get_llm(temperature=0)
     av_client = AlphaVantageClient(api_key=os.getenv("ALPHA_VANTAGE_API_KEY", "demo"))
     yf_client = YFinanceClient()
-    router = FinancialDataRouter(providers=[av_client, yf_client])
+    fmp_client = (
+        FMPClient(api_key=os.getenv("FMP_API_KEY", ""))
+        if os.getenv("FMP_API_KEY")
+        else None
+    )
+    providers = [av_client, yf_client]
+    if fmp_client:
+        providers.insert(1, fmp_client)
+    router = FinancialDataRouter(providers=providers)
 
     controller = JasperController(
         planner=Planner(llm),
         executor=Executor(router),
-        validator=ValidatorClass(),
+        validator=Validator(),
         synthesizer=Synthesizer(llm),
     )
 
